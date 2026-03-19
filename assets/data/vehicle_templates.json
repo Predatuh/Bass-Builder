@@ -1,0 +1,11 @@
+{
+  "Custom": {"width": 32.0, "height": 20.0, "max_depth": 40.0},
+  "Chevy Silverado Crew": {"width": 55.0, "height": 16.0, "max_depth": 20.0},
+  "Ford F-150 SuperCrew": {"width": 58.0, "height": 15.0, "max_depth": 18.0},
+  "Ram 1500 Crew Cab": {"width": 56.0, "height": 14.5, "max_depth": 19.0},
+  "Jeep Wrangler JK/JL": {"width": 36.0, "height": 16.0, "max_depth": 14.0},
+  "Honda Civic Sedan": {"width": 42.0, "height": 16.0, "max_depth": 28.0},
+  "Toyota Camry": {"width": 44.0, "height": 18.0, "max_depth": 32.0},
+  "Chevy Tahoe/Suburban": {"width": 48.0, "height": 20.0, "max_depth": 36.0},
+  "Nissan Altima": {"width": 40.0, "height": 17.0, "max_depth": 30.0}
+}

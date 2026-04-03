@@ -10,31 +10,69 @@ class EnclosureCalculator {
     final internalHeight = math.max(1.0, config.height - (config.woodThickness * config.topBottomLayers * 2));
     final chamberVolumes = _calculateChamberVolumes(config);
     final effectiveNetVolume = config.isBandpass ? chamberVolumes.$1 + chamberVolumes.$2 : config.targetNetVolume;
-    final totalSubDisplacement = config.displacementPerSub * config.numberOfSubs;
+
+    // Apply polyfill acoustic effect to sealed chamber (or sealed box)
+    // Polyfill increases effective volume by ~12% per lb/cf of fill
+    final effectiveVolume = config.polyfillDensity > 0 && (config.enclosureType == EnclosureType.sealed || config.isBandpass)
+        ? effectiveNetVolume * (1 + config.polyfillDensity * 0.12)
+        : effectiveNetVolume;
+
+    // Inverted subs don't displace internal volume (motor is outside)
+    final numInternalSubs = config.numberOfSubs - config.numInverted.clamp(0, config.numberOfSubs);
+    final totalSubDisplacement = config.displacementPerSub * numInternalSubs;
     final dividerDisplacement = config.isBandpass ? (internalWidth * internalHeight * config.woodThickness) / 1728 : 0.0;
     final portArea = _portArea(config, internalHeight);
-    final portLength = _portLength(config, effectiveNetVolume, portArea);
+    final portLength = _portLength(config, effectiveVolume, portArea);
     final portDisplacement = _portDisplacement(portArea, portLength);
-    final baffleGain = (math.pi * math.pow(config.cutoutDiameter / 2, 2) * config.woodThickness * config.frontLayers * config.numberOfSubs) / 1728;
-    final grossVolume = effectiveNetVolume + totalSubDisplacement + portDisplacement + config.braceDisplacement + dividerDisplacement - baffleGain;
+
+    // Baffle gain: full baffle thickness bt (all layers), not bt - wood
+    final bt = config.woodThickness * config.frontLayers;
+    final subCutoutArea = math.pi * math.pow(config.cutoutDiameter / 2, 2) * config.numberOfSubs;
+    final portCutoutArea = config.isPorted && config.portType == PortType.round
+        ? math.pi * math.pow(config.roundPortDiameter / 2, 2) * config.numberOfPorts
+        : 0.0;
+    final baffleGain = ((subCutoutArea + portCutoutArea) * bt) / 1728;
+
+    final effectiveBraceDisplacement = config.braceDisplacementOverride
+        ? config.braceDisplacementManual
+        : config.braceDisplacement;
+    final grossVolume = effectiveVolume + totalSubDisplacement + portDisplacement + effectiveBraceDisplacement + dividerDisplacement - baffleGain;
 
     final internalDepth = (grossVolume * 1728) / (internalWidth * internalHeight);
     final externalDepth = internalDepth + (config.woodThickness * config.frontLayers) + (config.woodThickness * config.backLayers);
     final portClearance = config.isPorted ? math.max(0.0, internalDepth - portLength).toDouble() : internalDepth;
-    final totalDisplacement = totalSubDisplacement + portDisplacement + config.braceDisplacement + dividerDisplacement;
+    final totalDisplacement = totalSubDisplacement + portDisplacement + effectiveBraceDisplacement + dividerDisplacement;
     final boxWeight = _boxWeight(config, externalDepth, internalDepth);
     final materialBreakdown = _materialBreakdown(config, externalDepth, internalDepth);
     final totalCost = materialBreakdown.values.fold<double>(0, (sum, value) => sum + value);
+    final sheetsNeeded = _sheetsNeeded(config, externalDepth, internalDepth);
+    final totalPanelAreaSqFt = _totalPanelArea(config, externalDepth, internalDepth);
     final slotNeedsBend = config.isPorted && config.portType == PortType.slot && portLength > math.max(0.0, internalDepth - config.slotPortWidth);
     final slotLeg1Length = config.portType == PortType.slot ? math.min(portLength, math.max(0.0, internalDepth - config.slotPortWidth)) : 0.0;
     final slotLeg2Length = config.portType == PortType.slot ? math.max(0.0, portLength - slotLeg1Length) : 0.0;
-    final responseCurve = _responseCurve(config, effectiveNetVolume);
+
+    // Port velocity
+    final portVelocityFps = _portVelocityFps(config, portArea);
+
+    // Bandpass suitability
+    final bandpassSuitability = config.isBandpass ? _bandpassSuitability(config.qts) : '';
+
+    final responseCurve = _responseCurve(config, effectiveVolume);
+    final responseCurve2 = config.tuning2 > 0
+        ? _responseCurve(config.copyWith(tuning: config.tuning2), effectiveVolume)
+        : <ResponsePoint>[];
+    final responseCurve3 = config.tuning3 > 0
+        ? _responseCurve(config.copyWith(tuning: config.tuning3), effectiveVolume)
+        : <ResponsePoint>[];
+    final cabinGainCurve = config.cabinGainEnabled
+        ? _cabinGainCurve(config.cabinGainStartFreq, config.cabinGainSlope)
+        : <ResponsePoint>[];
     final groupDelayCurve = _groupDelayCurve(config);
     final excursionCurve = _excursionCurve(config);
     final f3 = _findThresholdFrequency(responseCurve, -3);
     final f6 = _findThresholdFrequency(responseCurve, -6);
-    final qtc = config.enclosureType == EnclosureType.sealed ? config.qts * math.sqrt(1 + config.vas / effectiveNetVolume) : null;
-    final fc = config.enclosureType == EnclosureType.sealed ? config.fs * math.sqrt(1 + config.vas / effectiveNetVolume) : null;
+    final qtc = config.enclosureType == EnclosureType.sealed ? config.qts * math.sqrt(1 + config.vas / effectiveVolume) : null;
+    final fc = config.enclosureType == EnclosureType.sealed ? config.fs * math.sqrt(1 + config.vas / effectiveVolume) : null;
 
     return EnclosureResult(
       internalWidth: internalWidth,
@@ -60,9 +98,16 @@ class EnclosureCalculator {
       qtc: qtc,
       fc: fc,
       materialBreakdown: materialBreakdown,
+      portVelocityFps: portVelocityFps,
+      bandpassSuitability: bandpassSuitability,
+      cabinGainCurve: cabinGainCurve,
+      responseCurve2: responseCurve2,
+      responseCurve3: responseCurve3,
+      sheetsNeeded: sheetsNeeded,
+      totalPanelAreaSqFt: totalPanelAreaSqFt,
       metrics: [
         MetricTileData(label: 'External Depth', value: '${externalDepth.toStringAsFixed(2)} in'),
-        MetricTileData(label: 'Net Volume', value: '${effectiveNetVolume.toStringAsFixed(2)} cf'),
+        MetricTileData(label: 'Net Volume', value: '${effectiveVolume.toStringAsFixed(2)} cf'),
         MetricTileData(label: config.isPorted ? 'Tuning' : 'Type', value: config.isPorted ? '${config.tuning.toStringAsFixed(1)} Hz' : config.enclosureType.label),
         MetricTileData(label: 'Box Weight', value: '${boxWeight.toStringAsFixed(1)} lbs'),
         MetricTileData(label: 'Est. Cost', value: '\$${totalCost.toStringAsFixed(0)}'),
@@ -73,6 +118,17 @@ class EnclosureCalculator {
               ? 'Check choke risk'
               : null,
         ),
+        if (config.isPorted)
+          MetricTileData(
+            label: 'Port Velocity',
+            value: '${portVelocityFps.toStringAsFixed(1)} fps',
+            emphasis: _portVelocityWarning(config.portType, portVelocityFps),
+          ),
+        if (config.isBandpass)
+          MetricTileData(
+            label: 'BP Suitability',
+            value: bandpassSuitability,
+          ),
         if (config.isBandpass) MetricTileData(label: 'Rear Chamber', value: '${chamberVolumes.$1.toStringAsFixed(2)} cf'),
         if (config.isBandpass) MetricTileData(label: 'Front Chamber', value: '${chamberVolumes.$2.toStringAsFixed(2)} cf'),
       ],
@@ -91,7 +147,7 @@ class EnclosureCalculator {
       shareQuery: Uri(queryParameters: {
         'w': config.width.toStringAsFixed(2),
         'h': config.height.toStringAsFixed(2),
-        'v': effectiveNetVolume.toStringAsFixed(2),
+        'v': effectiveVolume.toStringAsFixed(2),
         't': config.tuning.toStringAsFixed(1),
         'subs': '${config.numberOfSubs}',
         'sub': config.subModel,
@@ -217,6 +273,64 @@ class EnclosureCalculator {
       'Gasket Tape': 6,
       'Carpet ($carpetYards yd)': carpetYards * 15,
     };
+  }
+
+  static int _sheetsNeeded(EnclosureConfig config, double externalDepth, double internalDepth) {
+    final topDepth = math.max(1.0, externalDepth - (config.woodThickness * config.frontLayers) - (config.woodThickness * config.backLayers));
+    final frontArea = (config.width * config.height * config.frontLayers) / 144;
+    final backArea = (config.width * config.height * config.backLayers) / 144;
+    final topArea = (config.width * topDepth * config.topBottomLayers) / 144;
+    final sideArea = ((config.height - (config.woodThickness * 2 * config.topBottomLayers)) * topDepth * config.sideLayers * 2) / 144;
+    final totalArea = frontArea + backArea + topArea + topArea + sideArea;
+    return (totalArea * 1.2 / 32).ceil();
+  }
+
+  static double _totalPanelArea(EnclosureConfig config, double externalDepth, double internalDepth) {
+    final topDepth = math.max(1.0, externalDepth - (config.woodThickness * config.frontLayers) - (config.woodThickness * config.backLayers));
+    final frontArea = (config.width * config.height * config.frontLayers) / 144;
+    final backArea = (config.width * config.height * config.backLayers) / 144;
+    final topArea = (config.width * topDepth * config.topBottomLayers) / 144;
+    final sideArea = ((config.height - (config.woodThickness * 2 * config.topBottomLayers)) * topDepth * config.sideLayers * 2) / 144;
+    return frontArea + backArea + topArea + topArea + sideArea;
+  }
+
+  static double _portVelocityFps(EnclosureConfig config, double portArea) {
+    if (!config.isPorted || portArea <= 0 || config.xmax <= 0) return 0.0;
+    // v = (Sd * Xmax_m * 2pi * f * N) / portArea_m2
+    final sd = math.pi * math.pow((config.cutoutDiameter / 2) * 0.0254, 2); // m²
+    final xmaxM = config.xmax / 1000.0; // mm → m
+    final portAreaM2 = portArea * 0.000645; // in² → m²
+    final n = config.numberOfSubs;
+    final velocityMs = (sd * xmaxM * 2 * math.pi * config.tuning * n) / portAreaM2;
+    return velocityMs * 3.28084; // m/s → ft/s
+  }
+
+  static String? _portVelocityWarning(PortType portType, double fps) {
+    if (fps <= 0) return null;
+    if (portType == PortType.slot) {
+      if (fps > 22) return 'Likely noisy';
+      if (fps > 17) return 'Caution';
+    } else {
+      if (fps > 38) return 'Likely noisy';
+      if (fps > 28) return 'Caution';
+    }
+    return null;
+  }
+
+  static String _bandpassSuitability(double qts) {
+    if (qts >= 0.35 && qts <= 0.55) return 'Excellent';
+    if (qts >= 0.25 && qts < 0.35) return 'Good';
+    if (qts > 0.55 && qts <= 0.65) return 'Marginal';
+    return 'Poor';
+  }
+
+  static List<ResponsePoint> _cabinGainCurve(double startFreq, double slope) {
+    final points = <ResponsePoint>[];
+    for (var hz = 10.0; hz <= 150.0; hz += 2.0) {
+      final gain = hz < startFreq ? slope * (math.log(startFreq / hz) / math.ln2) : 0.0;
+      points.add(ResponsePoint(frequency: hz, spl: gain));
+    }
+    return points;
   }
 
   static List<CutPanel> _cutPanels(EnclosureConfig config, double externalDepth, double internalHeight) {

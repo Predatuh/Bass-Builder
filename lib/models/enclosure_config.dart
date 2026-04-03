@@ -51,6 +51,25 @@ class EnclosureConfig {
     required this.showTransparent,
     required this.showExploded,
     required this.showTerminal,
+    // New fields
+    this.numInverted = 0,
+    this.polyfillDensity = 0.0,
+    this.bandpassGoal = BandpassGoal.dailyDriver,
+    this.slotSharedWall = true,
+    this.portPresetId,
+    this.windowBraceVariant = WindowBraceVariant.single,
+    this.braceDisplacementOverride = false,
+    this.braceDisplacementManual = 0.0,
+    this.cabinGainEnabled = false,
+    this.cabinGainStartFreq = 80.0,
+    this.cabinGainSlope = 3.0,
+    this.qes = 0.52,
+    this.qms = 5.5,
+    this.re = 3.2,
+    this.le = 2.5,
+    this.bl = 18.0,
+    this.tuning2 = 0.0,
+    this.tuning3 = 0.0,
   });
 
   factory EnclosureConfig.initial() {
@@ -104,6 +123,26 @@ class EnclosureConfig {
       showTerminal: true,
     );
   }
+
+  // New extended T/S and design fields
+  final int numInverted;
+  final double polyfillDensity;
+  final BandpassGoal bandpassGoal;
+  final bool slotSharedWall;
+  final String? portPresetId;
+  final WindowBraceVariant windowBraceVariant;
+  final bool braceDisplacementOverride;
+  final double braceDisplacementManual;
+  final bool cabinGainEnabled;
+  final double cabinGainStartFreq;
+  final double cabinGainSlope;
+  final double qes;
+  final double qms;
+  final double re;
+  final double le;
+  final double bl;
+  final double tuning2;
+  final double tuning3;
 
   final String designName;
   final EnclosureType enclosureType;
@@ -204,6 +243,24 @@ class EnclosureConfig {
     bool? showTransparent,
     bool? showExploded,
     bool? showTerminal,
+    int? numInverted,
+    double? polyfillDensity,
+    BandpassGoal? bandpassGoal,
+    bool? slotSharedWall,
+    Object? portPresetId = _sentinel,
+    WindowBraceVariant? windowBraceVariant,
+    bool? braceDisplacementOverride,
+    double? braceDisplacementManual,
+    bool? cabinGainEnabled,
+    double? cabinGainStartFreq,
+    double? cabinGainSlope,
+    double? qes,
+    double? qms,
+    double? re,
+    double? le,
+    double? bl,
+    double? tuning2,
+    double? tuning3,
   }) {
     return EnclosureConfig(
       designName: designName ?? this.designName,
@@ -253,8 +310,28 @@ class EnclosureConfig {
       showTransparent: showTransparent ?? this.showTransparent,
       showExploded: showExploded ?? this.showExploded,
       showTerminal: showTerminal ?? this.showTerminal,
+      numInverted: numInverted ?? this.numInverted,
+      polyfillDensity: polyfillDensity ?? this.polyfillDensity,
+      bandpassGoal: bandpassGoal ?? this.bandpassGoal,
+      slotSharedWall: slotSharedWall ?? this.slotSharedWall,
+      portPresetId: portPresetId == _sentinel ? this.portPresetId : portPresetId as String?,
+      windowBraceVariant: windowBraceVariant ?? this.windowBraceVariant,
+      braceDisplacementOverride: braceDisplacementOverride ?? this.braceDisplacementOverride,
+      braceDisplacementManual: braceDisplacementManual ?? this.braceDisplacementManual,
+      cabinGainEnabled: cabinGainEnabled ?? this.cabinGainEnabled,
+      cabinGainStartFreq: cabinGainStartFreq ?? this.cabinGainStartFreq,
+      cabinGainSlope: cabinGainSlope ?? this.cabinGainSlope,
+      qes: qes ?? this.qes,
+      qms: qms ?? this.qms,
+      re: re ?? this.re,
+      le: le ?? this.le,
+      bl: bl ?? this.bl,
+      tuning2: tuning2 ?? this.tuning2,
+      tuning3: tuning3 ?? this.tuning3,
     );
   }
+
+  static const Object _sentinel = Object();
 
   Map<String, dynamic> toMap() {
     return {
@@ -305,6 +382,24 @@ class EnclosureConfig {
       'showTransparent': showTransparent,
       'showExploded': showExploded,
       'showTerminal': showTerminal,
+      'numInverted': numInverted,
+      'polyfillDensity': polyfillDensity,
+      'bandpassGoal': bandpassGoal.name,
+      'slotSharedWall': slotSharedWall,
+      'portPresetId': portPresetId,
+      'windowBraceVariant': windowBraceVariant.name,
+      'braceDisplacementOverride': braceDisplacementOverride,
+      'braceDisplacementManual': braceDisplacementManual,
+      'cabinGainEnabled': cabinGainEnabled,
+      'cabinGainStartFreq': cabinGainStartFreq,
+      'cabinGainSlope': cabinGainSlope,
+      'qes': qes,
+      'qms': qms,
+      're': re,
+      'le': le,
+      'bl': bl,
+      'tuning2': tuning2,
+      'tuning3': tuning3,
     };
   }
 
@@ -380,6 +475,30 @@ class EnclosureConfig {
       showTransparent: map['showTransparent'] as bool? ?? false,
       showExploded: map['showExploded'] as bool? ?? false,
       showTerminal: map['showTerminal'] as bool? ?? true,
+      numInverted: (map['numInverted'] as num?)?.toInt() ?? 0,
+      polyfillDensity: (map['polyfillDensity'] as num?)?.toDouble() ?? 0.0,
+      bandpassGoal: BandpassGoal.values.firstWhere(
+        (v) => v.name == map['bandpassGoal'],
+        orElse: () => BandpassGoal.dailyDriver,
+      ),
+      slotSharedWall: map['slotSharedWall'] as bool? ?? true,
+      portPresetId: map['portPresetId'] as String?,
+      windowBraceVariant: WindowBraceVariant.values.firstWhere(
+        (v) => v.name == map['windowBraceVariant'],
+        orElse: () => WindowBraceVariant.single,
+      ),
+      braceDisplacementOverride: map['braceDisplacementOverride'] as bool? ?? false,
+      braceDisplacementManual: (map['braceDisplacementManual'] as num?)?.toDouble() ?? 0.0,
+      cabinGainEnabled: map['cabinGainEnabled'] as bool? ?? false,
+      cabinGainStartFreq: (map['cabinGainStartFreq'] as num?)?.toDouble() ?? 80.0,
+      cabinGainSlope: (map['cabinGainSlope'] as num?)?.toDouble() ?? 3.0,
+      qes: (map['qes'] as num?)?.toDouble() ?? 0.52,
+      qms: (map['qms'] as num?)?.toDouble() ?? 5.5,
+      re: (map['re'] as num?)?.toDouble() ?? 3.2,
+      le: (map['le'] as num?)?.toDouble() ?? 2.5,
+      bl: (map['bl'] as num?)?.toDouble() ?? 18.0,
+      tuning2: (map['tuning2'] as num?)?.toDouble() ?? 0.0,
+      tuning3: (map['tuning3'] as num?)?.toDouble() ?? 0.0,
     );
   }
 

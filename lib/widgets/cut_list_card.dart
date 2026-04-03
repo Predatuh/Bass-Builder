@@ -41,7 +41,44 @@ class CutListCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
+              Text('Material Summary', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              if (result.sheetsNeeded > 0 || result.totalPanelAreaSqFt > 0)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFBF7F1),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFE7D9C4)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      Column(
+                        children: [
+                          Text('Sheets (4×8)', style: Theme.of(context).textTheme.titleSmall),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${result.sheetsNeeded}',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ],
+                      ),
+                      Column(
+                        children: [
+                          Text('Total Area', style: Theme.of(context).textTheme.titleSmall),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${result.totalPanelAreaSqFt.toStringAsFixed(1)} sq ft',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               Text('Material Breakdown', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
               ...result.materialBreakdown.entries.map(

@@ -239,6 +239,9 @@ class _ScenePainter extends CustomPainter {
       case PortPlacement.rightFront:
       case PortPlacement.rightRear:
         return _v(config.width / 2 + 0.01, y, config.portPlacement == PortPlacement.rightFront ? externalDepth * 0.2 : -externalDepth * 0.2);
+      case PortPlacement.center:
+      case PortPlacement.dualSides:
+        return _v(0, y, externalDepth / 2 + 0.01);
     }
   }
 
@@ -277,6 +280,14 @@ class _ScenePainter extends CustomPainter {
           _v(center.x, center.y + halfH, -halfW),
           _v(center.x, center.y + halfH, halfW),
           _v(center.x, center.y - halfH, halfW),
+        ];
+      case PortPlacement.center:
+      case PortPlacement.dualSides:
+        return [
+          _v(center.x - halfW, -halfH, center.z),
+          _v(center.x + halfW, -halfH, center.z),
+          _v(center.x + halfW, halfH, center.z),
+          _v(center.x - halfW, halfH, center.z),
         ];
     }
   }

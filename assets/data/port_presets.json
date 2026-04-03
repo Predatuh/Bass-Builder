@@ -1,0 +1,110 @@
+{
+  "6 in BAP": {
+    "label": "6\" BigAss Port",
+    "brand": "BigAss Ports",
+    "innerDiameter": 6.3125,
+    "cutoutDiameter": 8.125,
+    "outerDiameter": 9.375,
+    "displacementPerInch": 0.0218,
+    "aCoeff": 84240.0,
+    "bCoeff": -3.6,
+    "flareLen": 2.25,
+    "wallThickness": 0.125
+  },
+  "8 in BAP": {
+    "label": "8\" BigAss Port",
+    "brand": "BigAss Ports",
+    "innerDiameter": 8.1875,
+    "cutoutDiameter": 11.25,
+    "outerDiameter": 12.375,
+    "displacementPerInch": 0.0365,
+    "aCoeff": 141732.0,
+    "bCoeff": -4.4767,
+    "flareLen": 2.75,
+    "wallThickness": 0.125
+  },
+  "10 in BAP": {
+    "label": "10\" BigAss Port",
+    "brand": "BigAss Ports",
+    "innerDiameter": 10.1875,
+    "cutoutDiameter": 13.0,
+    "outerDiameter": 14.4375,
+    "displacementPerInch": 0.0566,
+    "aCoeff": 219438.0,
+    "bCoeff": -6.1867,
+    "flareLen": 3.0,
+    "wallThickness": 0.125
+  },
+  "3 in Precision": {
+    "label": "3\" Precision Port",
+    "brand": "Precision Ports",
+    "innerDiameter": 3.0,
+    "cutoutDiameter": 4.5,
+    "outerDiameter": 4.75,
+    "displacementPerInch": 0.0049,
+    "aCoeff": 3168.0,
+    "bCoeff": -1.5,
+    "flareLen": 1.5,
+    "wallThickness": 0.125
+  },
+  "4 in Precision": {
+    "label": "4\" Precision Port",
+    "brand": "Precision Ports",
+    "innerDiameter": 4.0,
+    "cutoutDiameter": 5.75,
+    "outerDiameter": 6.25,
+    "displacementPerInch": 0.0087,
+    "aCoeff": 5632.0,
+    "bCoeff": -2.0,
+    "flareLen": 1.75,
+    "wallThickness": 0.125
+  },
+  "6 in Precision": {
+    "label": "6\" Precision Port",
+    "brand": "Precision Ports",
+    "innerDiameter": 6.0,
+    "cutoutDiameter": 8.0,
+    "outerDiameter": 8.75,
+    "displacementPerInch": 0.0196,
+    "aCoeff": 12672.0,
+    "bCoeff": -3.2,
+    "flareLen": 2.0,
+    "wallThickness": 0.125
+  },
+  "3 in Aero": {
+    "label": "3\" Aero Port",
+    "brand": "Aero Ports",
+    "innerDiameter": 3.0,
+    "cutoutDiameter": 4.0,
+    "outerDiameter": 4.5,
+    "displacementPerInch": 0.0049,
+    "aCoeff": 3168.0,
+    "bCoeff": -1.5,
+    "flareLen": 0.0,
+    "wallThickness": 0.125
+  },
+  "4 in Aero": {
+    "label": "4\" Aero Port",
+    "brand": "Aero Ports",
+    "innerDiameter": 4.0,
+    "cutoutDiameter": 5.25,
+    "outerDiameter": 6.0,
+    "displacementPerInch": 0.0087,
+    "aCoeff": 5632.0,
+    "bCoeff": -2.0,
+    "flareLen": 0.0,
+    "wallThickness": 0.125
+  },
+  "custom": {
+    "label": "Custom Pipe",
+    "brand": "Custom",
+    "innerDiameter": 4.0,
+    "cutoutDiameter": 4.5,
+    "outerDiameter": 5.0,
+    "displacementPerInch": 0.0087,
+    "aCoeff": 5632.0,
+    "bCoeff": -2.0,
+    "flareLen": 0.0,
+    "wallThickness": 0.25
+  }
+}

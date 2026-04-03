@@ -5,6 +5,7 @@ import '../data/subwoofer_presets.dart';
 import '../models/enums.dart';
 import '../models/subwoofer_preset.dart';
 import '../state/bass_builder_controller.dart';
+import '../services/port_preset_service.dart';
 
 class ConfigForm extends StatelessWidget {
   const ConfigForm({super.key});
@@ -17,6 +18,8 @@ class ConfigForm extends StatelessWidget {
     final currentManufacturer = selectedPreset.manufacturer;
     final manufacturerPresets = controller.presetsForManufacturer(currentManufacturer);
     final selectedVehicle = controller.selectedVehicleTemplate;
+
+    final portPresets = context.watch<PortPresetService>().presets;
 
     return Card(
       child: Padding(
@@ -166,6 +169,44 @@ class ConfigForm extends StatelessWidget {
                 ),
               ],
             ),
+            if (config.numberOfSubs > 1) ...[  
+              const SizedBox(height: 8),
+              _CompactNumberField(
+                label: 'Inverted Subs',
+                value: config.numInverted.toDouble(),
+                min: 0,
+                max: config.numberOfSubs.toDouble(),
+                divisions: config.numberOfSubs,
+                onChanged: (value) => controller.updateConfig(config.copyWith(numInverted: value.round())),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Text('Tuning Comparison', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _CompactNumberField(
+                  label: 'Tuning 2',
+                  value: config.tuning2 == 0 ? config.tuning : config.tuning2,
+                  min: 20,
+                  max: 60,
+                  divisions: 80,
+                  suffix: 'Hz',
+                  onChanged: (value) => controller.updateConfig(config.copyWith(tuning2: value)),
+                ),
+                _CompactNumberField(
+                  label: 'Tuning 3',
+                  value: config.tuning3 == 0 ? config.tuning : config.tuning3,
+                  min: 20,
+                  max: 60,
+                  divisions: 80,
+                  suffix: 'Hz',
+                  onChanged: (value) => controller.updateConfig(config.copyWith(tuning3: value)),
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
             Text('Port + Mounting', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
@@ -246,6 +287,64 @@ class ConfigForm extends StatelessWidget {
                 ),
               ],
             ),
+            if (config.portType == PortType.round && portPresets.isNotEmpty) ...[  
+              const SizedBox(height: 12),
+              _LabeledField(
+                label: 'Port Tube Preset',
+                child: DropdownButtonFormField<String>(
+                  value: config.portPresetId,
+                  hint: const Text('Choose a tube preset...'),
+                  items: portPresets
+                      .map((p) => DropdownMenuItem(value: p.id, child: Text(p.label)))
+                      .toList(),
+                  onChanged: (value) {
+                    final preset = portPresets.firstWhere((p) => p.id == value, orElse: () => portPresets.first);
+                    controller.updateConfig(config.copyWith(
+                      portPresetId: value,
+                      roundPortDiameter: preset.innerDiameter,
+                    ));
+                  },
+                ),
+              ),
+            ],
+            if (config.portType == PortType.slot) ...[  
+              const SizedBox(height: 4),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Slot Port Shares Wall'),
+                subtitle: const Text('Port uses a box wall as one side'),
+                value: config.slotSharedWall,
+                onChanged: (value) => controller.updateConfig(config.copyWith(slotSharedWall: value)),
+              ),
+            ],
+            const SizedBox(height: 4),
+            _CompactNumberField(
+              label: 'Polyfill Density',
+              value: config.polyfillDensity,
+              min: 0.0,
+              max: 1.5,
+              divisions: 30,
+              suffix: 'lb/cf',
+              onChanged: (value) => controller.updateConfig(config.copyWith(polyfillDensity: value)),
+            ),
+            if (config.enclosureType == EnclosureType.fourthOrderBandpass ||
+                config.enclosureType == EnclosureType.sixthOrderBandpass) ...[  
+              const SizedBox(height: 12),
+              _LabeledField(
+                label: 'Bandpass Design Goal',
+                child: DropdownButtonFormField<BandpassGoal>(
+                  value: config.bandpassGoal,
+                  items: BandpassGoal.values
+                      .map((v) => DropdownMenuItem(value: v, child: Text(v.label)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      controller.updateConfig(config.copyWith(bandpassGoal: value));
+                    }
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             Text('3D + Hardware', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
@@ -377,6 +476,83 @@ class ConfigForm extends StatelessWidget {
               divisions: 5,
               onChanged: (value) => controller.updatePlacement(braceCount: value.round()),
             ),
+            if (config.braceType == BraceType.window) ...[  
+              const SizedBox(height: 12),
+              _LabeledField(
+                label: 'Window Brace Style',
+                child: DropdownButtonFormField<WindowBraceVariant>(
+                  value: config.windowBraceVariant,
+                  items: WindowBraceVariant.values
+                      .map((v) => DropdownMenuItem(value: v, child: Text(v.label)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      controller.updateConfig(config.copyWith(windowBraceVariant: value));
+                    }
+                  },
+                ),
+              ),
+            ],
+            const SizedBox(height: 4),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Override Brace Displacement'),
+              subtitle: const Text('Manually enter brace volume instead of auto-calculating'),
+              value: config.braceDisplacementOverride,
+              onChanged: (value) => controller.updateConfig(config.copyWith(braceDisplacementOverride: value)),
+            ),
+            if (config.braceDisplacementOverride) ...[  
+              _CompactNumberField(
+                label: 'Brace Displacement',
+                value: config.braceDisplacementManual,
+                min: 0,
+                max: 5,
+                divisions: 100,
+                suffix: 'cf',
+                onChanged: (value) => controller.updateConfig(config.copyWith(braceDisplacementManual: value)),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Text('Per-Face Layers', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _CompactNumberField(
+                  label: 'Front Layers',
+                  value: config.frontLayers.toDouble(),
+                  min: 1,
+                  max: 5,
+                  divisions: 4,
+                  onChanged: (value) => controller.updateConfig(config.copyWith(frontLayers: value.round())),
+                ),
+                _CompactNumberField(
+                  label: 'Back Layers',
+                  value: config.backLayers.toDouble(),
+                  min: 1,
+                  max: 5,
+                  divisions: 4,
+                  onChanged: (value) => controller.updateConfig(config.copyWith(backLayers: value.round())),
+                ),
+                _CompactNumberField(
+                  label: 'Top/Bot Layers',
+                  value: config.topBottomLayers.toDouble(),
+                  min: 1,
+                  max: 5,
+                  divisions: 4,
+                  onChanged: (value) => controller.updateConfig(config.copyWith(topBottomLayers: value.round())),
+                ),
+                _CompactNumberField(
+                  label: 'Side Layers',
+                  value: config.sideLayers.toDouble(),
+                  min: 1,
+                  max: 5,
+                  divisions: 4,
+                  onChanged: (value) => controller.updateConfig(config.copyWith(sideLayers: value.round())),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Text('T/S Parameters', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
@@ -427,6 +603,93 @@ class ConfigForm extends StatelessWidget {
                 ),
               ],
             ),
+            if (config.useTsModel) ...[  
+              const SizedBox(height: 8),
+              Text('Extended T/S Parameters', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _CompactNumberField(
+                    label: 'Qes',
+                    value: config.qes,
+                    min: 0.1,
+                    max: 1.5,
+                    divisions: 140,
+                    onChanged: (value) => controller.updateConfig(config.copyWith(qes: value)),
+                  ),
+                  _CompactNumberField(
+                    label: 'Qms',
+                    value: config.qms,
+                    min: 1.0,
+                    max: 20.0,
+                    divisions: 190,
+                    onChanged: (value) => controller.updateConfig(config.copyWith(qms: value)),
+                  ),
+                  _CompactNumberField(
+                    label: 'Re (Ω)',
+                    value: config.re,
+                    min: 1.0,
+                    max: 8.0,
+                    divisions: 70,
+                    onChanged: (value) => controller.updateConfig(config.copyWith(re: value)),
+                  ),
+                  _CompactNumberField(
+                    label: 'Le (mH)',
+                    value: config.le,
+                    min: 0.1,
+                    max: 10.0,
+                    divisions: 99,
+                    onChanged: (value) => controller.updateConfig(config.copyWith(le: value)),
+                  ),
+                  _CompactNumberField(
+                    label: 'BL (Tm)',
+                    value: config.bl,
+                    min: 5.0,
+                    max: 40.0,
+                    divisions: 70,
+                    onChanged: (value) => controller.updateConfig(config.copyWith(bl: value)),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 16),
+            Text('Cabin Gain', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Enable Cabin Gain Model'),
+              subtitle: const Text('Models low-frequency boost from vehicle cabin'),
+              value: config.cabinGainEnabled,
+              onChanged: (value) => controller.updateConfig(config.copyWith(cabinGainEnabled: value)),
+            ),
+            if (config.cabinGainEnabled) ...[  
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _CompactNumberField(
+                    label: 'Cabin Rolloff',
+                    value: config.cabinGainStartFreq,
+                    min: 40,
+                    max: 150,
+                    divisions: 110,
+                    suffix: 'Hz',
+                    onChanged: (value) => controller.updateConfig(config.copyWith(cabinGainStartFreq: value)),
+                  ),
+                  _CompactNumberField(
+                    label: 'Gain Slope',
+                    value: config.cabinGainSlope,
+                    min: 1.0,
+                    max: 6.0,
+                    divisions: 50,
+                    suffix: 'dB/oct',
+                    onChanged: (value) => controller.updateConfig(config.copyWith(cabinGainSlope: value)),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

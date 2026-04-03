@@ -73,6 +73,13 @@ class EnclosureResult {
     required this.groupDelayCurve,
     required this.excursionCurve,
     required this.shareQuery,
+    this.portVelocityFps = 0.0,
+    this.bandpassSuitability = '',
+    this.cabinGainCurve = const [],
+    this.responseCurve2 = const [],
+    this.responseCurve3 = const [],
+    this.sheetsNeeded = 0,
+    this.totalPanelAreaSqFt = 0.0,
   });
 
   final double internalWidth;
@@ -105,4 +112,12 @@ class EnclosureResult {
   final List<ResponsePoint> groupDelayCurve;
   final List<ResponsePoint> excursionCurve;
   final String shareQuery;
+  // New fields
+  final double portVelocityFps;
+  final String bandpassSuitability;
+  final List<ResponsePoint> cabinGainCurve;
+  final List<ResponsePoint> responseCurve2;
+  final List<ResponsePoint> responseCurve3;
+  final int sheetsNeeded;
+  final double totalPanelAreaSqFt;
 }

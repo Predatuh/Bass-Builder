@@ -23,7 +23,9 @@ enum PortPlacement {
   rightFront('Right Side - Front'),
   rightRear('Right Side - Rear'),
   top('Top'),
-  rear('Rear');
+  rear('Rear'),
+  center('Center (Between Subs)'),
+  dualSides('Dual (Both Sides)');
 
   const PortPlacement(this.label);
   final String label;
@@ -70,5 +72,24 @@ enum BraceDirection {
   topToBottom('Top to Bottom (Z-axis)');
 
   const BraceDirection(this.label);
+  final String label;
+}
+
+enum BandpassGoal {
+  dailyDriver('Daily Driver'),
+  spl('SPL'),
+  lowEnd('Low-End Extension'),
+  custom('Custom');
+
+  const BandpassGoal(this.label);
+  final String label;
+}
+
+enum WindowBraceVariant {
+  single('Single'),
+  quad('Quad (4-Window)'),
+  xBrace('X-Brace');
+
+  const WindowBraceVariant(this.label);
   final String label;
 }

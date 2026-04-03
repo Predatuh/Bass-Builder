@@ -62,6 +62,7 @@ class ExportService {
 
   static Future<String> exportBlueprintPng(EnclosureConfig config, EnclosureResult result) async {
     final bytes = await BlueprintSheetPainter.renderPng(config, result);
+    if (bytes == null) throw Exception('Blueprint render failed');
     return saveBytes(
       fileName: '${_safeBaseName(config.designName)}_blueprint.png',
       bytes: bytes,

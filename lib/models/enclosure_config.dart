@@ -70,6 +70,7 @@ class EnclosureConfig {
     this.bl = 18.0,
     this.tuning2 = 0.0,
     this.tuning3 = 0.0,
+    this.portDepthInsideBox = 0.0,
   });
 
   factory EnclosureConfig.initial() {
@@ -143,6 +144,7 @@ class EnclosureConfig {
   final double bl;
   final double tuning2;
   final double tuning3;
+  final double portDepthInsideBox;
 
   final String designName;
   final EnclosureType enclosureType;
@@ -261,6 +263,7 @@ class EnclosureConfig {
     double? bl,
     double? tuning2,
     double? tuning3,
+    double? portDepthInsideBox,
   }) {
     return EnclosureConfig(
       designName: designName ?? this.designName,
@@ -328,6 +331,7 @@ class EnclosureConfig {
       bl: bl ?? this.bl,
       tuning2: tuning2 ?? this.tuning2,
       tuning3: tuning3 ?? this.tuning3,
+      portDepthInsideBox: portDepthInsideBox ?? this.portDepthInsideBox,
     );
   }
 
@@ -400,6 +404,7 @@ class EnclosureConfig {
       'bl': bl,
       'tuning2': tuning2,
       'tuning3': tuning3,
+      'portDepthInsideBox': portDepthInsideBox,
     };
   }
 
@@ -499,6 +504,7 @@ class EnclosureConfig {
       bl: (map['bl'] as num?)?.toDouble() ?? 18.0,
       tuning2: (map['tuning2'] as num?)?.toDouble() ?? 0.0,
       tuning3: (map['tuning3'] as num?)?.toDouble() ?? 0.0,
+      portDepthInsideBox: (map['portDepthInsideBox'] as num?)?.toDouble() ?? 0.0,
     );
   }
 

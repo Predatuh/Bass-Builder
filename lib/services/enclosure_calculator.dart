@@ -23,7 +23,11 @@ class EnclosureCalculator {
     final dividerDisplacement = config.isBandpass ? (internalWidth * internalHeight * config.woodThickness) / 1728 : 0.0;
     final portArea = _portArea(config, internalHeight);
     final portLength = _portLength(config, effectiveVolume, portArea);
-    final portDisplacement = _portDisplacement(portArea, portLength);
+    // For round ports: only the segment inside the box displaces internal air
+    final roundPortInsideLength = config.portType == PortType.round && config.portDepthInsideBox > 0
+        ? config.portDepthInsideBox
+        : portLength;
+    final portDisplacement = _portDisplacement(portArea, roundPortInsideLength);
 
     // Baffle gain: full baffle thickness bt (all layers), not bt - wood
     final bt = config.woodThickness * config.frontLayers;

@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -19,17 +19,27 @@ class BlueprintCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Blueprint Views', style: Theme.of(context).textTheme.titleLarge),
+        Text('Blueprint Views',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: const Color(0xFF7EC8E3),
+                )),
         const SizedBox(height: 8),
-        const Text('Front, side, and top plans are rendered from the same config/result model that powers export.'),
-        const SizedBox(height: 20),
+        Text(
+          'Engineering drawing — front, side, top orthographic projections.',
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: const Color(0xFF7EC8E3)),
+        ),
+        const SizedBox(height: 12),
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFFFBF7F1),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: const Color(0xFFE7D9C4)),
+              color: const Color(0xFF0D1B2A),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF1E3A5F)),
             ),
+            clipBehavior: Clip.antiAlias,
             child: CustomPaint(
               painter: BlueprintSheetPainter(controller.config, controller.result),
               child: const SizedBox.expand(),
@@ -47,218 +57,506 @@ class BlueprintSheetPainter extends CustomPainter {
   final EnclosureConfig config;
   final EnclosureResult result;
 
+  // Colors
+  static const _bg = Color(0xFF0D1B2A);
+  static const _grid = Color(0xFF112237);
+  static const _construction = Color(0xFF1E3A5F);
+  static const _outline = Color(0xFF7EC8E3);
+  static const _dim = Color(0xFF48B0D5);
+  static const _hatch = Color(0xFF2A5A8A);
+  static const _sub = Color(0xFFE11D48);
+  static const _port = Color(0xFFF97316);
+  static const _terminal = Color(0xFFEAB308);
+  static const _centerline = Color(0xFF3B82F6);
+  static const _label = Color(0xFFCBE8F5);
+  static const _dimText = Color(0xFF48B0D5);
+  static const _titleText = Color(0xFF7EC8E3);
+
   @override
   void paint(Canvas canvas, Size size) {
-    final background = Paint()..color = const Color(0xFFE8E1D3);
-    canvas.drawRect(Offset.zero & size, background);
-
-    final frontRect = Rect.fromLTWH(24, 24, size.width * 0.44, size.height * 0.42);
-    final sideRect = Rect.fromLTWH(size.width * 0.52, 24, size.width * 0.42, size.height * 0.42);
-    final topRect = Rect.fromLTWH(24, size.height * 0.54, size.width * 0.7, size.height * 0.32);
-
-    _drawFront(canvas, frontRect);
-    _drawSide(canvas, sideRect);
-    _drawTop(canvas, topRect);
-  }
-
-  void _drawFront(Canvas canvas, Rect rect) {
-    _drawSheetBox(canvas, rect, 'FRONT VIEW');
-    final box = _fitRect(rect, config.width, config.height);
-    final outline = Paint()..color = const Color(0xFF1F2937)..style = PaintingStyle.stroke..strokeWidth = 2;
-    final lightFill = Paint()..color = Colors.white.withValues(alpha: 0.7);
-    canvas.drawRect(box, lightFill);
-    canvas.drawRect(box, outline);
-
-    for (final center in _frontCenters(box)) {
-      canvas.drawCircle(center, _scaleFor(box, config.width, config.height) * (config.outerDiameter / 2), Paint()..color = const Color(0xFF374151));
-      canvas.drawCircle(center, _scaleFor(box, config.width, config.height) * (config.cutoutDiameter / 2), Paint()..color = const Color(0xFFE11D48)..style = PaintingStyle.stroke..strokeWidth = 2);
-    }
-
-    if (config.isPorted) {
-      if (config.portType == PortType.slot) {
-        final scale = _scaleFor(box, config.width, config.height);
-        final portHeight = (config.height - (config.woodThickness * 2)) * scale;
-        final portWidth = config.slotPortWidth * scale;
-        final portCenterX = box.left + (config.portX * scale);
-        final portCenterY = box.top + (config.portZ * scale);
-        final portRect = Rect.fromLTWH(portCenterX - portWidth / 2, portCenterY - portHeight / 2, portWidth, portHeight);
-        canvas.drawRect(portRect, Paint()..color = const Color(0xFF93C5FD));
-        canvas.drawRect(portRect, Paint()..color = const Color(0xFF1D4ED8)..style = PaintingStyle.stroke..strokeWidth = 2);
-      } else {
-        final scale = _scaleFor(box, config.width, config.height);
-        final portCenter = Offset(box.left + (config.portX * scale), box.top + (config.portZ * scale));
-        canvas.drawCircle(portCenter, config.roundPortDiameter * scale / 2, Paint()..color = const Color(0xFF93C5FD));
-      }
-    }
-
-    if (config.showTerminal) {
-      final scale = _scaleFor(box, config.width, config.height);
-      final terminalCenter = Offset(box.left + (config.terminalX * scale), box.top + (config.terminalZ * scale));
-      canvas.drawCircle(terminalCenter, 1.75 * scale, Paint()..color = const Color(0xFFEAB308)..style = PaintingStyle.stroke..strokeWidth = 2);
-    }
-  }
-
-  void _drawSide(Canvas canvas, Rect rect) {
-    _drawSheetBox(canvas, rect, 'SIDE VIEW');
-    final box = _fitRect(rect, result.externalDepth, config.height);
-    final outline = Paint()..color = const Color(0xFF1F2937)..style = PaintingStyle.stroke..strokeWidth = 2;
-    canvas.drawRect(box, Paint()..color = Colors.white.withValues(alpha: 0.7));
-    canvas.drawRect(box, outline);
-
-    final scale = _scaleFor(box, result.externalDepth, config.height);
-    final frontThickness = config.woodThickness * config.frontLayers * scale;
-    final topBottomThickness = config.woodThickness * config.topBottomLayers * scale;
-    final cavity = Rect.fromLTWH(box.left + frontThickness, box.top + topBottomThickness, result.internalDepth * scale, result.internalHeight * scale);
-    canvas.drawRect(cavity, Paint()..color = const Color(0xFFF8FAFC));
-    canvas.drawRect(cavity, Paint()..color = const Color(0xFF64748B)..style = PaintingStyle.stroke);
-
-    if (config.isPorted && config.portType == PortType.slot) {
-      final dividerRect = Rect.fromLTWH(cavity.left, cavity.top, result.portLength.clamp(0.0, result.internalDepth) * scale, config.woodThickness * scale);
-      canvas.drawRect(dividerRect, Paint()..color = const Color(0xFFD9A066));
-    }
-
-    if (config.isBandpass) {
-      final ratio = result.portedChamberVolume / math.max(0.01, result.portedChamberVolume + result.sealedChamberVolume);
-      final dividerX = cavity.left + (cavity.width * ratio);
-      canvas.drawLine(Offset(dividerX, cavity.top), Offset(dividerX, cavity.bottom), Paint()..color = const Color(0xFF8B4513)..strokeWidth = 2);
-    }
-  }
-
-  void _drawTop(Canvas canvas, Rect rect) {
-    _drawSheetBox(canvas, rect, 'TOP VIEW');
-    final box = _fitRect(rect, config.width, result.externalDepth);
-    final outline = Paint()..color = const Color(0xFF1F2937)..style = PaintingStyle.stroke..strokeWidth = 2;
-    canvas.drawRect(box, Paint()..color = Colors.white.withValues(alpha: 0.7));
-    canvas.drawRect(box, outline);
-
-    final scale = _scaleFor(box, config.width, result.externalDepth);
-    final cavity = Rect.fromLTWH(
-      box.left + (config.woodThickness * config.sideLayers * scale),
-      box.top + (config.woodThickness * config.frontLayers * scale),
-      result.internalWidth * scale,
-      result.internalDepth * scale,
+    // Background
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      Paint()..color = _bg,
     );
-    canvas.drawRect(cavity, Paint()..color = const Color(0xFFF8FAFC));
-    canvas.drawRect(cavity, Paint()..color = const Color(0xFF64748B)..style = PaintingStyle.stroke);
 
-    if (config.isPorted && config.portType == PortType.slot) {
-      final portRect = Rect.fromLTWH(cavity.left + ((config.portX - config.slotPortWidth / 2) * scale), cavity.top, config.slotPortWidth * scale, result.portLength.clamp(0.0, result.internalDepth) * scale);
-      canvas.drawRect(portRect, Paint()..color = const Color(0xFF93C5FD));
-      canvas.drawRect(portRect, Paint()..color = const Color(0xFF1D4ED8)..style = PaintingStyle.stroke..strokeWidth = 2);
+    _drawGrid(canvas, size);
+
+    final margin = 24.0;
+    final titleH = 50.0;
+    final drawH = size.height - margin * 2 - titleH;
+    final drawW = size.width - margin * 2;
+
+    // Three panels side by side: FRONT | SIDE | TOP
+    final panelW = (drawW - 32) / 3;
+    final panelH = drawH;
+
+    final frontRect = Rect.fromLTWH(margin, margin, panelW, panelH);
+    final sideRect = Rect.fromLTWH(margin + panelW + 16, margin, panelW, panelH);
+    final topRect = Rect.fromLTWH(margin + (panelW + 16) * 2, margin, panelW, panelH);
+
+    _drawPanel(canvas, frontRect, 'FRONT', config.width, config.height);
+    _drawPanel(canvas, sideRect, 'SIDE', result.externalDepth, config.height);
+    _drawPanel(canvas, topRect, 'TOP', config.width, result.externalDepth);
+
+    _drawFrontComponents(canvas, frontRect);
+    _drawSideComponents(canvas, sideRect);
+    _drawTopComponents(canvas, topRect);
+
+    _drawDimension(canvas, frontRect, config.width, config.height,
+        result.externalDepth);
+
+    _drawTitleBlock(canvas, size, margin, titleH);
+  }
+
+  void _drawGrid(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = _grid
+      ..strokeWidth = 0.5;
+    const step = 30.0;
+    for (double x = 0; x < size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
     }
-
-    _drawTopBraces(canvas, cavity, scale);
-  }
-
-  void _drawSheetBox(Canvas canvas, Rect rect, String title) {
-    final border = Paint()..color = const Color(0xFFB8A891)..style = PaintingStyle.stroke..strokeWidth = 1;
-    canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(16)), border);
-    final painter = TextPainter(
-      text: TextSpan(text: title, style: const TextStyle(color: Color(0xFF111827), fontWeight: FontWeight.w700, fontSize: 14)),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    painter.paint(canvas, Offset(rect.left + 12, rect.top + 10));
-  }
-
-  Rect _fitRect(Rect available, double width, double height) {
-    final inner = available.deflate(18);
-    final drawTop = inner.top + 20;
-    final maxHeight = inner.height - 28;
-    final scale = _scaleFor(Rect.fromLTWH(inner.left, drawTop, inner.width, maxHeight), width, height);
-    final drawWidth = width * scale;
-    final drawHeight = height * scale;
-    return Rect.fromLTWH(inner.center.dx - drawWidth / 2, drawTop + (maxHeight - drawHeight) / 2, drawWidth, drawHeight);
-  }
-
-  double _scaleFor(Rect rect, double width, double height) {
-    return math.min(rect.width / math.max(width, 1), rect.height / math.max(height, 1));
-  }
-
-  List<Offset> _frontCenters(Rect box) {
-    final centers = <Offset>[];
-    final spacing = (config.outerDiameter + 0.5) * _scaleFor(box, config.width, config.height);
-    final offset = (config.numberOfSubs - 1) / 2;
-    for (var index = 0; index < config.numberOfSubs; index++) {
-      final baseX = box.left + (config.subX * _scaleFor(box, config.width, config.height));
-      final baseY = box.top + (config.subZ * _scaleFor(box, config.width, config.height));
-      final x = config.arrangement == SubArrangement.rowVertical ? baseX : baseX + ((index - offset) * spacing);
-      final y = config.arrangement == SubArrangement.rowVertical ? baseY + ((index - offset) * spacing) : baseY;
-      centers.add(Offset(x, y));
+    for (double y = 0; y < size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
-    return centers;
   }
 
-  void _drawTopBraces(Canvas canvas, Rect cavity, double scale) {
-    if (config.braceType == BraceType.none) {
-      return;
-    }
+  // Draw a single panel with outer border and wood-thickness hatch
+  void _drawPanel(Canvas canvas, Rect rect, String label, double w, double h) {
+    final scale = _fitScale(rect, w, h);
+    final boxW = w * scale;
+    final boxH = h * scale;
+    final ox = rect.left + (rect.width - boxW) / 2;
+    final oy = rect.top + (rect.height - boxH) / 2;
+    final boxRect = Rect.fromLTWH(ox, oy, boxW, boxH);
+
+    // Construction fill
+    canvas.drawRect(
+      boxRect,
+      Paint()..color = _construction.withValues(alpha: 0.15),
+    );
+
+    // Wood hatch on all 4 walls
+    final t = config.woodThickness * scale;
+    _drawHatchRect(canvas, Rect.fromLTWH(ox, oy, boxW, t)); // top wall
+    _drawHatchRect(
+        canvas, Rect.fromLTWH(ox, oy + boxH - t, boxW, t)); // bottom
+    _drawHatchRect(canvas, Rect.fromLTWH(ox, oy + t, t, boxH - t * 2)); // left
+    _drawHatchRect(
+        canvas, Rect.fromLTWH(ox + boxW - t, oy + t, t, boxH - t * 2)); // right
+
+    // Outline
+    canvas.drawRect(
+      boxRect,
+      Paint()
+        ..color = _outline
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+
+    // Inner cavity outline
+    final innerRect = Rect.fromLTWH(ox + t, oy + t, boxW - t * 2, boxH - t * 2);
+    canvas.drawRect(
+      innerRect,
+      Paint()
+        ..color = _construction
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8,
+    );
+
+    // Panel label
+    _drawText(
+      canvas,
+      label,
+      Offset(ox + boxW / 2, oy - 14),
+      _titleText,
+      fontSize: 10,
+      bold: true,
+      center: true,
+    );
+  }
+
+  void _drawHatchRect(Canvas canvas, Rect r) {
+    if (r.width <= 0 || r.height <= 0) return;
     final paint = Paint()
-      ..color = const Color(0xFF7C4A20)
-      ..strokeWidth = config.braceType == BraceType.dowel ? 4 : 2;
-    final count = config.braceCount.clamp(1, 6);
-    for (var index = 0; index < count; index++) {
-      final t = count == 1 ? 0.5 : 0.2 + (index * (0.6 / (count - 1)));
-      switch (config.braceDirection) {
-        case BraceDirection.sideToSide:
-          final y = cavity.top + (cavity.height * t);
-          canvas.drawLine(Offset(cavity.left, y), Offset(cavity.right, y), paint);
-        case BraceDirection.frontToBack:
-          final x = cavity.left + (cavity.width * t);
-          canvas.drawLine(Offset(x, cavity.top), Offset(x, cavity.bottom), paint);
-        case BraceDirection.topToBottom:
-          final x = cavity.left + (cavity.width * t);
-          canvas.drawLine(Offset(x, cavity.top), Offset(x, cavity.bottom), paint);
-      }
+      ..color = _hatch
+      ..strokeWidth = 0.7;
+    canvas.clipRect(r);
+    const spacing = 5.0;
+    final diag = (r.width + r.height);
+    for (double d = -diag; d < diag; d += spacing) {
+      canvas.drawLine(
+        Offset(r.left + d, r.top),
+        Offset(r.left + d + r.height, r.bottom),
+        paint,
+      );
     }
+    canvas.restore();
+    canvas.save(); // restore the clip
   }
 
-  static Future<Uint8List> renderPng(EnclosureConfig config, EnclosureResult result) async {
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    const size = Size(1600, 1000);
-    BlueprintSheetPainter(config, result).paint(canvas, size);
-    final picture = recorder.endRecording();
-    final image = await picture.toImage(size.width.toInt(), size.height.toInt());
-    final data = await image.toByteData(format: ui.ImageByteFormat.png);
-    return data!.buffer.asUint8List();
-  }
+  void _drawFrontComponents(Canvas canvas, Rect rect) {
+    final scale = _fitScale(rect, config.width, config.height);
+    final boxW = config.width * scale;
+    final boxH = config.height * scale;
+    final ox = rect.left + (rect.width - boxW) / 2;
+    final oy = rect.top + (rect.height - boxH) / 2;
+    final t = config.woodThickness * scale;
 
-  static String buildFrontPanelSvg(EnclosureConfig config, EnclosureResult result) {
-    final subCenters = _staticFrontCenters(config);
-    final buffer = StringBuffer()
-      ..writeln('<?xml version="1.0" encoding="UTF-8"?>')
-      ..writeln('<svg xmlns="http://www.w3.org/2000/svg" width="${config.width}" height="${config.height}" viewBox="0 0 ${config.width} ${config.height}">')
-      ..writeln('  <rect x="0" y="0" width="${config.width}" height="${config.height}" fill="none" stroke="black" stroke-width="0.1"/>');
-    for (final center in subCenters) {
-      buffer.writeln('  <circle cx="${center.dx}" cy="${config.height - center.dy}" r="${config.cutoutDiameter / 2}" fill="none" stroke="red" stroke-width="0.1"/>');
-    }
-    if (config.isPorted && config.portType == PortType.round) {
-      buffer.writeln('  <circle cx="${config.portX}" cy="${config.height - config.portZ}" r="${config.roundPortDiameter / 2}" fill="none" stroke="blue" stroke-width="0.1"/>');
-    }
-    if (config.isPorted && config.portType == PortType.slot) {
-      buffer.writeln('  <rect x="${config.portX - (config.slotPortWidth / 2)}" y="${config.woodThickness}" width="${config.slotPortWidth}" height="${config.height - (config.woodThickness * 2)}" fill="none" stroke="blue" stroke-width="0.1"/>');
-    }
-    if (config.showTerminal) {
-      buffer.writeln('  <circle cx="${config.terminalX}" cy="${config.height - config.terminalZ}" r="1.75" fill="none" stroke="green" stroke-width="0.1"/>');
-    }
-    buffer.writeln('</svg>');
-    return buffer.toString();
-  }
-
-  static List<Offset> _staticFrontCenters(EnclosureConfig config) {
-    final positions = <Offset>[];
+    // Subs
     final spacing = config.outerDiameter + 0.5;
     final offset = (config.numberOfSubs - 1) / 2;
-    for (var index = 0; index < config.numberOfSubs; index++) {
-      final x = config.arrangement == SubArrangement.rowVertical ? config.subX : config.subX + ((index - offset) * spacing);
-      final y = config.arrangement == SubArrangement.rowVertical ? config.subZ + ((index - offset) * spacing) : config.subZ;
-      positions.add(Offset(x, y));
+    for (var i = 0; i < config.numberOfSubs; i++) {
+      final xOff = config.arrangement == SubArrangement.rowVertical
+          ? 0.0
+          : (i - offset) * spacing * scale;
+      final yOff = config.arrangement == SubArrangement.rowVertical
+          ? (i - offset) * spacing * scale
+          : 0.0;
+      final cx = ox + (config.subX * scale) + xOff;
+      final cy = oy + boxH - (config.subZ * scale) + yOff;
+
+      // Outer ring (filled dark)
+      _drawCircle(
+          canvas,
+          Offset(cx, cy),
+          config.outerDiameter / 2 * scale,
+          fill: const Color(0xFF111827),
+          stroke: _sub);
+      // Cutout ring
+      _drawCircle(
+          canvas,
+          Offset(cx, cy),
+          config.cutoutDiameter / 2 * scale,
+          fill: null,
+          stroke: _sub,
+          dashed: false);
+      // Dashed centerlines
+      _drawCenterlines(canvas, Offset(cx, cy), config.outerDiameter / 2 * scale + 4);
+      // Leader label
+      _drawLeader(canvas, Offset(cx, cy), 'SUB ${i + 1}', _sub);
     }
-    return positions;
+
+    // Port (front baffle only for FRONT view)
+    if (config.isPorted &&
+        (config.portPlacement == PortPlacement.frontBaffle ||
+            config.portPlacement == PortPlacement.center)) {
+      if (config.portType == PortType.round) {
+        final pcx = ox + config.portX * scale;
+        final pcy = oy + boxH - config.portZ * scale;
+        _drawCircle(canvas, Offset(pcx, pcy),
+            config.roundPortDiameter / 2 * scale,
+            fill: null, stroke: _port);
+        _drawCenterlines(
+            canvas, Offset(pcx, pcy), config.roundPortDiameter / 2 * scale + 4);
+        _drawLeader(canvas, Offset(pcx, pcy), 'PORT', _port);
+      } else {
+        // Slot port
+        final pw = config.slotPortWidth * scale;
+        final ph =
+            (config.height - config.woodThickness * 2) * scale;
+        final px = ox + t;
+        final py = oy + t;
+        canvas.drawRect(
+          Rect.fromLTWH(px, py, pw, ph),
+          Paint()
+            ..color = _port.withValues(alpha: 0.25)
+            ..style = PaintingStyle.fill,
+        );
+        canvas.drawRect(
+          Rect.fromLTWH(px, py, pw, ph),
+          Paint()
+            ..color = _port
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5,
+        );
+      }
+    }
+
+    // Terminal
+    if (config.showTerminal &&
+        (config.portPlacement == PortPlacement.frontBaffle ||
+            config.portPlacement == PortPlacement.center ||
+            config.portPlacement == PortPlacement.rear)) {
+      final tx = ox + config.terminalX * scale;
+      final ty = oy + boxH - config.terminalZ * scale;
+      _drawCircle(canvas, Offset(tx, ty), 1.75 * scale,
+          fill: null, stroke: _terminal);
+      _drawLeader(canvas, Offset(tx, ty), 'TERM', _terminal);
+    }
+  }
+
+  void _drawSideComponents(Canvas canvas, Rect rect) {
+    // Side view: depth x height - just shows the box outline and port if side-mounted
+    // No sub circles needed unless mount side is left/right
+    if (config.mountSide != MountSide.left && config.mountSide != MountSide.right) return;
+
+    final scale = _fitScale(rect, result.externalDepth, config.height);
+    final boxW = result.externalDepth * scale;
+    final boxH = config.height * scale;
+    final ox = rect.left + (rect.width - boxW) / 2;
+    final oy = rect.top + (rect.height - boxH) / 2;
+
+    final cx = ox + config.subX * scale;
+    final cy = oy + boxH - config.subZ * scale;
+    _drawCircle(canvas, Offset(cx, cy), config.outerDiameter / 2 * scale,
+        fill: const Color(0xFF111827), stroke: _sub);
+    _drawCircle(canvas, Offset(cx, cy), config.cutoutDiameter / 2 * scale,
+        fill: null, stroke: _sub);
+    _drawCenterlines(
+        canvas, Offset(cx, cy), config.outerDiameter / 2 * scale + 4);
+  }
+
+  void _drawTopComponents(Canvas canvas, Rect rect) {
+    // Top view shows sub positions projected on top face
+    if (config.mountSide != MountSide.top) return;
+
+    final scale = _fitScale(rect, config.width, result.externalDepth);
+    final boxW = config.width * scale;
+    final boxH = result.externalDepth * scale;
+    final ox = rect.left + (rect.width - boxW) / 2;
+    final oy = rect.top + (rect.height - boxH) / 2;
+
+    final cx = ox + config.subX * scale;
+    final cy = oy + config.subZ * scale;
+    _drawCircle(canvas, Offset(cx, cy), config.outerDiameter / 2 * scale,
+        fill: const Color(0xFF111827), stroke: _sub);
+    _drawCenterlines(
+        canvas, Offset(cx, cy), config.outerDiameter / 2 * scale + 4);
+  }
+
+  void _drawDimension(Canvas canvas, Rect frontRect, double w, double h, double d) {
+    final scale = _fitScale(frontRect, w, h);
+    final boxW = w * scale;
+    final boxH = h * scale;
+    final ox = frontRect.left + (frontRect.width - boxW) / 2;
+    final oy = frontRect.top + (frontRect.height - boxH) / 2;
+
+    // Width arrow (below box)
+    _drawArrow(
+      canvas,
+      Offset(ox, oy + boxH + 12),
+      Offset(ox + boxW, oy + boxH + 12),
+      '${w.toStringAsFixed(2)}"',
+    );
+    // Height arrow (left of box)
+    _drawArrow(
+      canvas,
+      Offset(ox - 12, oy + boxH),
+      Offset(ox - 12, oy),
+      '${h.toStringAsFixed(2)}"',
+      vertical: true,
+    );
+  }
+
+  void _drawArrow(Canvas canvas, Offset from, Offset to, String label,
+      {bool vertical = false}) {
+    final paint = Paint()
+      ..color = _dim
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(from, to, paint);
+    final dir = (to - from) / (to - from).distance;
+    // Arrowheads
+    _arrowHead(canvas, to, dir, paint);
+    _arrowHead(canvas, from, -dir, paint);
+    // Label
+    final mid = (from + to) / 2;
+    _drawText(
+      canvas,
+      label,
+      vertical ? Offset(mid.dx - 14, mid.dy) : Offset(mid.dx, mid.dy - 10),
+      _dimText,
+      fontSize: 8,
+      center: true,
+    );
+  }
+
+  void _arrowHead(Canvas canvas, Offset tip, Offset dir, Paint paint) {
+    const size = 5.0;
+    const angle = 0.4;
+    final a = tip - Offset(
+      dir.dx * size * math.cos(angle) - dir.dy * size * math.sin(angle),
+      dir.dy * size * math.cos(angle) + dir.dx * size * math.sin(angle),
+    );
+    final b = tip - Offset(
+      dir.dx * size * math.cos(angle) + dir.dy * size * math.sin(angle),
+      dir.dy * size * math.cos(angle) - dir.dx * size * math.sin(angle),
+    );
+    canvas.drawLine(tip, a, paint);
+    canvas.drawLine(tip, b, paint);
+  }
+
+  void _drawTitleBlock(Canvas canvas, Size size, double margin, double titleH) {
+    final y = size.height - titleH;
+    canvas.drawLine(
+      Offset(margin, y),
+      Offset(size.width - margin, y),
+      Paint()
+        ..color = _construction
+        ..strokeWidth = 1.0,
+    );
+    _drawText(
+      canvas,
+      config.designName.toUpperCase(),
+      Offset(margin + 8, y + 8),
+      _titleText,
+      fontSize: 11,
+      bold: true,
+    );
+    _drawText(
+      canvas,
+      '${config.width.toStringAsFixed(1)}" W x ${config.height.toStringAsFixed(1)}" H x ${result.externalDepth.toStringAsFixed(2)}" D   '
+      '${result.externalDepth > 0 ? config.targetNetVolume.toStringAsFixed(2) : '--'} cf   '
+      '${config.isPorted ? '${config.tuning.toStringAsFixed(1)} Hz' : config.enclosureType.label}',
+      Offset(margin + 8, y + 26),
+      _dim,
+      fontSize: 9,
+    );
+    _drawText(
+      canvas,
+      '${config.numberOfSubs}x ${config.subModel}',
+      Offset(size.width - margin - 8, y + 8),
+      _label,
+      fontSize: 9,
+      alignRight: true,
+    );
+    _drawText(
+      canvas,
+      config.portType == PortType.slot
+          ? 'Slot ${config.slotPortWidth.toStringAsFixed(1)}" x ${config.slotPortHeight.toStringAsFixed(1)}"'
+          : config.portType == PortType.round
+              ? 'Round ${config.roundPortDiameter.toStringAsFixed(1)}" dia.'
+              : 'Sealed',
+      Offset(size.width - margin - 8, y + 24),
+      _dim,
+      fontSize: 9,
+      alignRight: true,
+    );
+  }
+
+  double _fitScale(Rect rect, double w, double h) {
+    const pad = 28.0;
+    if (w <= 0 || h <= 0) return 1;
+    return math.min(
+      (rect.width - pad * 2) / w,
+      (rect.height - pad * 2) / h,
+    );
+  }
+
+  void _drawCircle(Canvas canvas, Offset center, double radius,
+      {Color? fill, required Color stroke, bool dashed = false}) {
+    if (fill != null) {
+      canvas.drawCircle(center, radius, Paint()..color = fill);
+    }
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = stroke
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0,
+    );
+  }
+
+  void _drawCenterlines(Canvas canvas, Offset center, double extent) {
+    final paint = Paint()
+      ..color = _centerline
+      ..strokeWidth = 0.7;
+    // Dashed horizontal
+    _dashedLine(
+        canvas, Offset(center.dx - extent, center.dy),
+        Offset(center.dx + extent, center.dy), paint);
+    // Dashed vertical
+    _dashedLine(
+        canvas, Offset(center.dx, center.dy - extent),
+        Offset(center.dx, center.dy + extent), paint);
+  }
+
+  void _dashedLine(Canvas canvas, Offset from, Offset to, Paint paint) {
+    const dashLen = 4.0;
+    const gapLen = 3.0;
+    final total = (to - from).distance;
+    final dir = (to - from) / total;
+    double d = 0;
+    bool drawing = true;
+    while (d < total) {
+      final segLen = drawing ? dashLen : gapLen;
+      final end = math.min(d + segLen, total);
+      if (drawing) {
+        canvas.drawLine(from + dir * d, from + dir * end, paint);
+      }
+      d = end;
+      drawing = !drawing;
+    }
+  }
+
+  void _drawLeader(Canvas canvas, Offset from, String label, Color color) {
+    final to = from + const Offset(14, -14);
+    canvas.drawLine(
+      from,
+      to,
+      Paint()
+        ..color = color.withValues(alpha: 0.7)
+        ..strokeWidth = 0.8,
+    );
+    _drawText(canvas, label, to + const Offset(2, -8), color,
+        fontSize: 8, bold: true);
+  }
+
+  void _drawText(
+    Canvas canvas,
+    String text,
+    Offset pos,
+    Color color, {
+    double fontSize = 10,
+    bool bold = false,
+    bool center = false,
+    bool alignRight = false,
+  }) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final dx = alignRight
+        ? pos.dx - tp.width
+        : center
+            ? pos.dx - tp.width / 2
+            : pos.dx;
+    tp.paint(canvas, Offset(dx, pos.dy));
   }
 
   @override
   bool shouldRepaint(covariant BlueprintSheetPainter oldDelegate) {
     return oldDelegate.config != config || oldDelegate.result != result;
+  }
+
+  // Static export helpers retained from original
+  static Future<Uint8List?> renderPng(EnclosureConfig config, EnclosureResult result, {double width = 1200, double height = 800}) async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    BlueprintSheetPainter(config, result).paint(canvas, Size(width, height));
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(width.round(), height.round());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData?.buffer.asUint8List();
+  }
+
+  static String buildFrontPanelSvg(EnclosureConfig config, EnclosureResult result) {
+    final w = config.width;
+    final h = config.height;
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w * 10} ${h * 10}">'
+        '<rect width="${w * 10}" height="${h * 10}" fill="#0D1B2A"/>'
+        '<rect x="7.5" y="7.5" width="${(w - 1.5) * 10}" height="${(h - 1.5) * 10}" '
+        'fill="none" stroke="#7EC8E3" stroke-width="1.5"/>'
+        '</svg>';
   }
 }

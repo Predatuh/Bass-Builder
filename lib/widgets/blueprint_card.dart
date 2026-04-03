@@ -82,18 +82,30 @@ class BlueprintSheetPainter extends CustomPainter {
 
     _drawGrid(canvas, size);
 
-    final margin = 24.0;
+    final margin = 18.0;
     final titleH = 50.0;
     final drawH = size.height - margin * 2 - titleH;
     final drawW = size.width - margin * 2;
 
-    // Three panels side by side: FRONT | SIDE | TOP
-    final panelW = (drawW - 32) / 3;
-    final panelH = drawH;
+    final isNarrow = size.width < 500;
 
-    final frontRect = Rect.fromLTWH(margin, margin, panelW, panelH);
-    final sideRect = Rect.fromLTWH(margin + panelW + 16, margin, panelW, panelH);
-    final topRect = Rect.fromLTWH(margin + (panelW + 16) * 2, margin, panelW, panelH);
+    late Rect frontRect, sideRect, topRect;
+
+    if (isNarrow) {
+      // Stack panels vertically — each gets full width, 1/3 height minus gap
+      final panelH = (drawH - 24) / 3;
+      final panelW = drawW;
+      frontRect = Rect.fromLTWH(margin, margin, panelW, panelH);
+      sideRect = Rect.fromLTWH(margin, margin + panelH + 12, panelW, panelH);
+      topRect = Rect.fromLTWH(margin, margin + (panelH + 12) * 2, panelW, panelH);
+    } else {
+      // Side by side for wider screens
+      final panelW = (drawW - 32) / 3;
+      final panelH = drawH;
+      frontRect = Rect.fromLTWH(margin, margin, panelW, panelH);
+      sideRect = Rect.fromLTWH(margin + panelW + 16, margin, panelW, panelH);
+      topRect = Rect.fromLTWH(margin + (panelW + 16) * 2, margin, panelW, panelH);
+    }
 
     _drawPanel(canvas, frontRect, 'FRONT', config.width, config.height);
     _drawPanel(canvas, sideRect, 'SIDE', result.externalDepth, config.height);
@@ -105,13 +117,16 @@ class BlueprintSheetPainter extends CustomPainter {
 
     // Dimension lines on each panel
     _drawPanelDimensions(canvas, frontRect, config.width, config.height, showHeight: true, showWidth: true);
-    _drawPanelDimensions(canvas, sideRect, result.externalDepth, config.height, showHeight: false, showWidth: true, widthLabel: 'DEPTH');
+    _drawPanelDimensions(canvas, sideRect, result.externalDepth, config.height, showHeight: !isNarrow, showWidth: true, widthLabel: 'DEPTH');
     _drawPanelDimensions(canvas, topRect, config.width, result.externalDepth, showHeight: false, showWidth: true, heightLabel: 'DEPTH');
 
     // Wood thickness callout on front panel
     _drawWoodThicknessCallout(canvas, frontRect);
-    // Port/sub info callout
-    _drawComponentCallout(canvas, size, margin, titleH);
+
+    // Only show component callout and title block when there's room
+    if (!isNarrow) {
+      _drawComponentCallout(canvas, size, margin, titleH);
+    }
 
     _drawTitleBlock(canvas, size, margin, titleH);
   }

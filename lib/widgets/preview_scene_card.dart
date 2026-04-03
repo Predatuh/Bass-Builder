@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/enclosure_config.dart';
+import '../models/enclosure_result.dart';
 import '../models/enums.dart';
 import '../screens/fullscreen_preview_page.dart';
 import '../state/bass_builder_controller.dart';
@@ -22,7 +23,7 @@ class PreviewSceneCard extends StatefulWidget {
 class _PreviewSceneCardState extends State<PreviewSceneCard> {
   double _yaw = -0.55;
   double _pitch = 0.45;
-  double _zoom = 1.0;
+  double _zoom = 0.55;
   _InteractionMode _mode = _InteractionMode.rotate;
   _PlaceTarget _activeTarget = _PlaceTarget.none;
   Size _canvasSize = Size.zero;
@@ -49,7 +50,7 @@ class _PreviewSceneCardState extends State<PreviewSceneCard> {
       (rotY.y * math.cos(_pitch)) - (rotY.z * math.sin(_pitch)),
       (rotY.y * math.sin(_pitch)) + (rotY.z * math.cos(_pitch)),
     );
-    final p = 1.0 / (1 + (rot.z / 220));
+    final p = 1.0 / (1 + (rot.z / 600));
     return Offset(center.dx + rot.x * scale * p, center.dy + rot.y * scale * p);
   }
 
@@ -103,8 +104,12 @@ class _PreviewSceneCardState extends State<PreviewSceneCard> {
 
   void _handleDrag(DragUpdateDetails details, EnclosureConfig config) {
     if (_activeTarget == _PlaceTarget.none) return;
-    final dx = _pxToInches(details.delta.dx);
-    final dy = _pxToInches(-details.delta.dy); // invert Y
+    // Invert the yaw rotation so screen drag maps to face-local coordinates
+    final rawDx = _pxToInches(details.delta.dx);
+    final rawDy = _pxToInches(-details.delta.dy); // invert Y
+    final cosYaw = math.cos(-_yaw);
+    final dx = rawDx * cosYaw;
+    final dy = rawDy;
     final controller = context.read<BassBuilderController>();
     switch (_activeTarget) {
       case _PlaceTarget.sub:
@@ -188,12 +193,17 @@ class _PreviewSceneCardState extends State<PreviewSceneCard> {
                 children: [
                   // Canvas
                   GestureDetector(
+                    onScaleStart: _mode == _InteractionMode.rotate
+                        ? (_) {}
+                        : null,
                     onScaleUpdate: _mode == _InteractionMode.rotate
                         ? (details) {
                             setState(() {
                               _yaw += details.focalPointDelta.dx * 0.01;
                               _pitch -= details.focalPointDelta.dy * 0.01;
-                              _zoom = (_zoom * details.scale).clamp(0.3, 4.0);
+                              if (details.pointerCount >= 2) {
+                                _zoom = (_zoom * details.scale).clamp(0.15, 3.0);
+                              }
                             });
                           }
                         : null,
@@ -211,6 +221,7 @@ class _PreviewSceneCardState extends State<PreviewSceneCard> {
                     child: CustomPaint(
                       painter: ScenePainter(
                         config: config,
+                        result: result,
                         externalDepth: result.externalDepth,
                         yaw: _yaw,
                         pitch: _pitch,
@@ -265,22 +276,42 @@ class _PreviewSceneCardState extends State<PreviewSceneCard> {
                     ),
                   ),
 
-                  // Zoom buttons
+                  // Zoom slider
                   Positioned(
                     bottom: 12,
                     right: 12,
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         _IconFab(
                           icon: Icons.add,
                           onTap: () => setState(
-                              () => _zoom = (_zoom * 1.2).clamp(0.2, 5.0)),
+                              () => _zoom = (_zoom + 0.1).clamp(0.15, 3.0)),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
+                        SizedBox(
+                          height: 120,
+                          child: RotatedBox(
+                            quarterTurns: 3,
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 3,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                              ),
+                              child: Slider(
+                                value: _zoom.clamp(0.15, 3.0),
+                                min: 0.15,
+                                max: 3.0,
+                                onChanged: (v) => setState(() => _zoom = v),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
                         _IconFab(
                           icon: Icons.remove,
                           onTap: () => setState(
-                              () => _zoom = (_zoom / 1.2).clamp(0.2, 5.0)),
+                              () => _zoom = (_zoom - 0.1).clamp(0.15, 3.0)),
                         ),
                         const SizedBox(height: 8),
                         _IconFab(
@@ -288,7 +319,7 @@ class _PreviewSceneCardState extends State<PreviewSceneCard> {
                           onTap: () => setState(() {
                             _yaw = -0.55;
                             _pitch = 0.45;
-                            _zoom = 1.0;
+                            _zoom = 0.55;
                           }),
                         ),
                       ],
@@ -461,6 +492,7 @@ class ScenePainter extends CustomPainter {
     required this.yaw,
     required this.pitch,
     required this.zoom,
+    this.result,
     this.labelColor = const Color(0xFF111827),
   });
 
@@ -469,6 +501,7 @@ class ScenePainter extends CustomPainter {
   final double yaw;
   final double pitch;
   final double zoom;
+  final EnclosureResult? result;
   final Color labelColor;
 
   @override
@@ -618,7 +651,8 @@ class ScenePainter extends CustomPainter {
         oldDelegate.yaw != yaw ||
         oldDelegate.pitch != pitch ||
         oldDelegate.zoom != zoom ||
-        oldDelegate.labelColor != labelColor;
+        oldDelegate.labelColor != labelColor ||
+        oldDelegate.result != result;
   }
 
   List<_Face3D> _buildFaces(double explode) {
@@ -635,36 +669,58 @@ class ScenePainter extends CustomPainter {
     final zMin = -halfD - explode;
     final zMax = halfD + explode;
 
-    // Inner cavity corners (inset by wood thickness)
-    final ixMin = xMin + t;
-    final ixMax = xMax - t;
-    final iyMin = yMin + t;
-    final iyMax = yMax - t;
-    final izMin = zMin + t;
-    final izMax = zMax - t;
-
-    // Wood colors: outer faces slightly darker, inner cavity lighter
+    // Wood colors — subtly different per orientation for realism
     const woodSide = Color(0xFFB8843A);
     const woodSideStroke = Color(0xFF7C4A20);
     const woodFront = Color(0xFFCB9A52);
     const woodFrontStroke = Color(0xFF7C4A20);
     const woodTop = Color(0xFFD9A870);
-    const cavityColor = Color(0xFF1A0F00); // dark interior
+    const woodEdge = Color(0xFF8B5E2C);
+    const woodEdgeStroke = Color(0xFF5A3A10);
+    const cavityColor = Color(0xFF1A0F00);
     const cavityStroke = Color(0xFF3A2000);
 
     final faces = <_Face3D>[];
 
-    // ── Outer faces ────────────────────────────────────────
-    // Front face (zMax)
+    // ── Front baffle layers (multi-layer support) ──
+    final frontThick = t * config.frontLayers;
+    final backThick = t * config.backLayers;
+
+    // Outer front face
     faces.add(_Face3D(
       points: [_v(xMin, yMin, zMax), _v(xMax, yMin, zMax), _v(xMax, yMax, zMax), _v(xMin, yMax, zMax)],
       color: woodFront, stroke: woodFrontStroke,
     ));
-    // Back face (zMin)
+
+    // Show individual front layers if >1
+    if (config.frontLayers > 1) {
+      for (var layer = 1; layer < config.frontLayers; layer++) {
+        final layerZ = zMax - (t * layer);
+        faces.add(_Face3D(
+          points: [_v(xMin, yMin, layerZ), _v(xMax, yMin, layerZ), _v(xMax, yMax, layerZ), _v(xMin, yMax, layerZ)],
+          color: woodEdge, stroke: woodEdgeStroke,
+        ));
+      }
+    }
+
+    // Back face
     faces.add(_Face3D(
       points: [_v(xMin, yMin, zMin), _v(xMax, yMin, zMin), _v(xMax, yMax, zMin), _v(xMin, yMax, zMin)],
       color: woodFront.withValues(alpha: 0.85), stroke: woodFrontStroke,
     ));
+
+    // Show individual back layers if >1
+    if (config.backLayers > 1) {
+      for (var layer = 1; layer < config.backLayers; layer++) {
+        final layerZ = zMin + (t * layer);
+        faces.add(_Face3D(
+          points: [_v(xMin, yMin, layerZ), _v(xMax, yMin, layerZ), _v(xMax, yMax, layerZ), _v(xMin, yMax, layerZ)],
+          color: woodEdge, stroke: woodEdgeStroke,
+        ));
+      }
+    }
+
+    // Side faces — show thickness as depth extent between inner and outer
     // Left face (xMin)
     faces.add(_Face3D(
       points: [_v(xMin, yMin, zMin), _v(xMin, yMin, zMax), _v(xMin, yMax, zMax), _v(xMin, yMax, zMin)],
@@ -675,7 +731,7 @@ class ScenePainter extends CustomPainter {
       points: [_v(xMax, yMin, zMin), _v(xMax, yMin, zMax), _v(xMax, yMax, zMax), _v(xMax, yMax, zMin)],
       color: woodSide, stroke: woodSideStroke,
     ));
-    // Top face (yMin — y axis is inverted, yMin = visual top)
+    // Top face (yMin)
     faces.add(_Face3D(
       points: [_v(xMin, yMin, zMin), _v(xMax, yMin, zMin), _v(xMax, yMin, zMax), _v(xMin, yMin, zMax)],
       color: woodTop, stroke: woodSideStroke,
@@ -688,6 +744,15 @@ class ScenePainter extends CustomPainter {
 
     // ── Inner faces (cavity walls — shown when transparent or exploded) ──
     if (config.showTransparent || config.showExploded) {
+      final sideThick = t * config.sideLayers;
+      final tbThick = t * config.topBottomLayers;
+      final ixMin = xMin + sideThick;
+      final ixMax = xMax - sideThick;
+      final iyMin = yMin + tbThick;
+      final iyMax = yMax - tbThick;
+      final izMin = zMin + backThick;
+      final izMax = zMax - frontThick;
+
       // Front inner
       faces.add(_Face3D(
         points: [_v(ixMin, iyMin, izMax), _v(ixMax, iyMin, izMax), _v(ixMax, iyMax, izMax), _v(ixMin, iyMax, izMax)],
@@ -719,25 +784,30 @@ class ScenePainter extends CustomPainter {
         color: cavityColor, stroke: cavityStroke,
       ));
 
-      // ── Wood edge cross-sections (visible cut edges) ──
-      // These L-shaped patches fill the gap between inner and outer
-      // on the visible edges (top-front horizontal edge, etc.)
-      const edgeColor = Color(0xFF8B5E2C);
-      const edgeStroke = Color(0xFF5A3A10);
-      // Top-front edge strip
+      // ── Wood edge cross-sections (visible cut edges showing thickness) ──
+      // Top-front edge strip (shows front baffle thickness)
       faces.add(_Face3D(
-        points: [_v(xMin, yMin, izMax), _v(xMax, yMin, izMax), _v(xMax, iyMin, zMax), _v(xMin, iyMin, zMax)],
-        color: edgeColor, stroke: edgeStroke,
+        points: [_v(xMin, yMin, izMax), _v(xMax, yMin, izMax), _v(xMax, yMin, zMax), _v(xMin, yMin, zMax)],
+        color: woodEdge, stroke: woodEdgeStroke,
       ));
       // Top-back edge strip
       faces.add(_Face3D(
-        points: [_v(xMin, yMin, izMin), _v(xMax, yMin, izMin), _v(xMax, iyMin, zMin), _v(xMin, iyMin, zMin)],
-        color: edgeColor, stroke: edgeStroke,
+        points: [_v(xMin, yMin, izMin), _v(xMax, yMin, izMin), _v(xMax, yMin, zMin), _v(xMin, yMin, zMin)],
+        color: woodEdge, stroke: woodEdgeStroke,
       ));
       // Bottom-front edge strip
       faces.add(_Face3D(
-        points: [_v(xMin, yMax, izMax), _v(xMax, yMax, izMax), _v(xMax, iyMax, zMax), _v(xMin, iyMax, zMax)],
-        color: edgeColor, stroke: edgeStroke,
+        points: [_v(xMin, yMax, izMax), _v(xMax, yMax, izMax), _v(xMax, yMax, zMax), _v(xMin, yMax, zMax)],
+        color: woodEdge, stroke: woodEdgeStroke,
+      ));
+      // Side edge strips (showing side thickness)
+      faces.add(_Face3D(
+        points: [_v(xMin, yMin, zMin), _v(xMin, yMin, zMax), _v(ixMin, yMin, zMax), _v(ixMin, yMin, zMin)],
+        color: woodEdge, stroke: woodEdgeStroke,
+      ));
+      faces.add(_Face3D(
+        points: [_v(xMax, yMin, zMin), _v(xMax, yMin, zMax), _v(ixMax, yMin, zMax), _v(ixMax, yMin, zMin)],
+        color: woodEdge, stroke: woodEdgeStroke,
       ));
     }
 
@@ -838,9 +908,10 @@ class ScenePainter extends CustomPainter {
     final R = config.roundPortDiameter / 2;
     const segments = 24;
     final normal = _portNormal();
-    final portLen = config.portDepthInsideBox > 0
+    // Use the actual calculated port length from the result
+    final portLen = result?.portLength ?? (config.portDepthInsideBox > 0
         ? config.portDepthInsideBox
-        : math.min(externalDepth * 0.6, 8.0);
+        : math.min(externalDepth * 0.6, 8.0));
 
     final frontRing = <_Vec3>[];
     final backRing = <_Vec3>[];
@@ -1144,7 +1215,7 @@ class ScenePainter extends CustomPainter {
       (rotY.y * math.cos(pitch)) - (rotY.z * math.sin(pitch)),
       (rotY.y * math.sin(pitch)) + (rotY.z * math.cos(pitch)),
     );
-    final persp = 1.0 / (1 + (rot.z / 220));
+    final persp = 1.0 / (1 + (rot.z / 600));
     return Offset(
       center.dx + (rot.x * scale * persp),
       center.dy + (rot.y * scale * persp),

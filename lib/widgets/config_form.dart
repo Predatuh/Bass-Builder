@@ -108,6 +108,55 @@ class ConfigForm extends StatelessWidget {
               ),
             ),
 
+            // ── Subwoofer Details (editable) ──────────────────────────────────
+            _CollapsibleSection(
+              title: 'Subwoofer Details',
+              children: [
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 14,
+                  children: [
+                    _NumberInput(
+                      label: 'Cutout Dia.',
+                      value: config.cutoutDiameter,
+                      min: 4, max: 20, step: 0.125, suffix: 'in',
+                      onChanged: (v) => controller.updateConfig(config.copyWith(cutoutDiameter: v)),
+                    ),
+                    _NumberInput(
+                      label: 'Outer Dia.',
+                      value: config.outerDiameter,
+                      min: 5, max: 22, step: 0.25, suffix: 'in',
+                      onChanged: (v) => controller.updateConfig(config.copyWith(outerDiameter: v)),
+                    ),
+                    _NumberInput(
+                      label: 'Displacement',
+                      value: config.displacementPerSub,
+                      min: 0.01, max: 1.0, step: 0.01, suffix: 'cf',
+                      onChanged: (v) => controller.updateConfig(config.copyWith(displacementPerSub: v)),
+                    ),
+                    _NumberInput(
+                      label: 'Mount Depth',
+                      value: config.mountingDepth,
+                      min: 2, max: 18, step: 0.25, suffix: 'in',
+                      onChanged: (v) => controller.updateConfig(config.copyWith(mountingDepth: v)),
+                    ),
+                    _NumberInput(
+                      label: 'Sensitivity',
+                      value: config.sensitivity,
+                      min: 78, max: 100, step: 0.5, suffix: 'dB',
+                      onChanged: (v) => controller.updateConfig(config.copyWith(sensitivity: v)),
+                    ),
+                    _NumberInput(
+                      label: 'Power',
+                      value: config.power,
+                      min: 100, max: 10000, step: 100, suffix: 'W', decimals: 0,
+                      onChanged: (v) => controller.updateConfig(config.copyWith(power: v)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
             // ── Core Dimensions ───────────────────────────────────────────────
             const SizedBox(height: 4),
             Text('Dimensions', style: Theme.of(context).textTheme.titleMedium),

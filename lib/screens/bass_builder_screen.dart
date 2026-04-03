@@ -165,7 +165,7 @@ class _LiveTweakSheetState extends State<_LiveTweakSheet> {
   // Mini-preview state
   double _yaw = -0.55;
   double _pitch = 0.45;
-  double _zoom = 1.0;
+  double _zoom = 0.45;
 
   @override
   void initState() {
@@ -280,26 +280,53 @@ class _LiveTweakSheetState extends State<_LiveTweakSheet> {
               ),
             ),
           ),
-          // Mini 3D preview
+          // Mini 3D preview with zoom slider
           SizedBox(
             height: 220,
-            child: GestureDetector(
-              onScaleUpdate: (d) => setState(() {
-                _yaw += d.focalPointDelta.dx * 0.01;
-                _pitch -= d.focalPointDelta.dy * 0.01;
-                _zoom = (_zoom * d.scale).clamp(0.2, 5.0);
-              }),
-              child: CustomPaint(
-                painter: ScenePainter(
-                  config: config,
-                  externalDepth: result.externalDepth,
-                  yaw: _yaw,
-                  pitch: _pitch,
-                  zoom: _zoom,
-                  labelColor: cs.onSurface,
+            child: Stack(
+              children: [
+                GestureDetector(
+                  onScaleUpdate: (d) => setState(() {
+                    _yaw += d.focalPointDelta.dx * 0.01;
+                    _pitch -= d.focalPointDelta.dy * 0.01;
+                    if (d.pointerCount >= 2) {
+                      _zoom = (_zoom * d.scale).clamp(0.15, 3.0);
+                    }
+                  }),
+                  child: CustomPaint(
+                    painter: ScenePainter(
+                      config: config,
+                      result: result,
+                      externalDepth: result.externalDepth,
+                      yaw: _yaw,
+                      pitch: _pitch,
+                      zoom: _zoom,
+                      labelColor: cs.onSurface,
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
                 ),
-                child: const SizedBox.expand(),
-              ),
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  bottom: 4,
+                  child: RotatedBox(
+                    quarterTurns: 3,
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 2,
+                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                      ),
+                      child: Slider(
+                        value: _zoom.clamp(0.15, 3.0),
+                        min: 0.15,
+                        max: 3.0,
+                        onChanged: (v) => setState(() => _zoom = v),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const Divider(height: 1),
@@ -338,6 +365,50 @@ class _LiveTweakSheetState extends State<_LiveTweakSheet> {
                   _numField('Height', _heightCtrl, 'in', step: 0.5),
                   _numField('Net Volume', _volumeCtrl, 'cf', step: 0.1),
                   _numField('Tuning', _tuningCtrl, 'Hz', step: 1),
+                  if (config.isPorted) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Port Length', style: TextStyle(fontWeight: FontWeight.w600, color: cs.onSurface)),
+                              Text('${result.portLength.toStringAsFixed(2)}"',
+                                  style: TextStyle(color: cs.primary, fontWeight: FontWeight.w700, fontSize: 15)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Port Area', style: TextStyle(fontWeight: FontWeight.w600, color: cs.onSurface)),
+                              Text('${result.portArea.toStringAsFixed(1)} in²',
+                                  style: TextStyle(color: cs.onSurface.withValues(alpha: 0.7), fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Port Velocity', style: TextStyle(fontWeight: FontWeight.w600, color: cs.onSurface)),
+                              Text('${result.portVelocityFps.toStringAsFixed(1)} fps',
+                                  style: TextStyle(
+                                    color: result.portVelocityFps > 38 ? cs.error : result.portVelocityFps > 22 ? Colors.orange : cs.primary,
+                                    fontWeight: FontWeight.w700,
+                                  )),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -356,7 +427,7 @@ class _WorkbenchTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 580,
+      height: 750,
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(20),

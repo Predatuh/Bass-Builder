@@ -20,7 +20,7 @@ class FullscreenPreviewPage extends StatefulWidget {
 class _FullscreenPreviewPageState extends State<FullscreenPreviewPage> {
   double _yaw = -0.55;
   double _pitch = 0.45;
-  double _zoom = 1.0;
+  double _zoom = 0.55;
   _InteractionMode _mode = _InteractionMode.rotate;
   _PlaceTarget _activeTarget = _PlaceTarget.none;
   Size _canvasSize = Size.zero;
@@ -36,7 +36,7 @@ class _FullscreenPreviewPageState extends State<FullscreenPreviewPage> {
       (rotY.y * math.cos(_pitch)) - (rotY.z * math.sin(_pitch)),
       (rotY.y * math.sin(_pitch)) + (rotY.z * math.cos(_pitch)),
     );
-    final p = 1.0 / (1 + (rot.z / 220));
+    final p = 1.0 / (1 + (rot.z / 600));
     return Offset(center.dx + rot.x * scale * p, center.dy + rot.y * scale * p);
   }
 
@@ -94,8 +94,10 @@ class _FullscreenPreviewPageState extends State<FullscreenPreviewPage> {
   void _handleDrag(DragUpdateDetails details, BassBuilderController controller) {
     if (_activeTarget == _PlaceTarget.none) return;
     final config = controller.config;
-    final dx = _pxToInches(details.delta.dx, controller);
-    final dy = _pxToInches(-details.delta.dy, controller);
+    final rawDx = _pxToInches(details.delta.dx, controller);
+    final rawDy = _pxToInches(-details.delta.dy, controller);
+    final dx = rawDx * math.cos(-_yaw);
+    final dy = rawDy;
     switch (_activeTarget) {
       case _PlaceTarget.sub:
         controller.updatePlacement(
@@ -144,11 +146,11 @@ class _FullscreenPreviewPageState extends State<FullscreenPreviewPage> {
         ),
         actions: [
           IconButton(icon: const Icon(Icons.add), tooltip: 'Zoom in',
-              onPressed: () => setState(() => _zoom = (_zoom * 1.2).clamp(0.2, 5.0))),
+              onPressed: () => setState(() => _zoom = (_zoom + 0.1).clamp(0.15, 3.0))),
           IconButton(icon: const Icon(Icons.remove), tooltip: 'Zoom out',
-              onPressed: () => setState(() => _zoom = (_zoom / 1.2).clamp(0.2, 5.0))),
+              onPressed: () => setState(() => _zoom = (_zoom - 0.1).clamp(0.15, 3.0))),
           IconButton(icon: const Icon(Icons.refresh), tooltip: 'Reset view',
-              onPressed: () => setState(() { _yaw = -0.55; _pitch = 0.45; _zoom = 1.0; })),
+              onPressed: () => setState(() { _yaw = -0.55; _pitch = 0.45; _zoom = 0.55; })),
         ],
       ),
       body: LayoutBuilder(
@@ -162,7 +164,9 @@ class _FullscreenPreviewPageState extends State<FullscreenPreviewPage> {
                         setState(() {
                           _yaw += details.focalPointDelta.dx * 0.01;
                           _pitch -= details.focalPointDelta.dy * 0.01;
-                          _zoom = (_zoom * details.scale).clamp(0.2, 5.0);
+                          if (details.pointerCount >= 2) {
+                            _zoom = (_zoom * details.scale).clamp(0.15, 3.0);
+                          }
                         });
                       }
                     : null,
@@ -179,6 +183,7 @@ class _FullscreenPreviewPageState extends State<FullscreenPreviewPage> {
                 child: CustomPaint(
                   painter: ScenePainter(
                     config: config,
+                    result: result,
                     externalDepth: result.externalDepth,
                     yaw: _yaw,
                     pitch: _pitch,

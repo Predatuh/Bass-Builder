@@ -97,7 +97,7 @@ class _PreviewSceneCardState extends State<PreviewSceneCard> {
               _canvasSize.width / (config.width + result.externalDepth),
               _canvasSize.height / (config.height + result.externalDepth),
             ) *
-            7 *
+            3.5 *
             _zoom);
   }
 
@@ -148,36 +148,40 @@ class _PreviewSceneCardState extends State<PreviewSceneCard> {
     final cs = Theme.of(context).colorScheme;
     final labelColor = Theme.of(context).colorScheme.onSurface;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-                child: Text('3D Preview',
-                    style: Theme.of(context).textTheme.titleLarge)),
-            Wrap(
-              spacing: 8,
+            Row(
               children: [
-                FilterChip(
-                  label: const Text('Transparent'),
-                  selected: config.showTransparent,
-                  onSelected: (v) =>
-                      controller.updateDisplaySettings(showTransparent: v),
-                ),
-                FilterChip(
-                  label: const Text('Exploded'),
-                  selected: config.showExploded,
-                  onSelected: (v) =>
-                      controller.updateDisplaySettings(showExploded: v),
+                Expanded(
+                    child: Text('3D Preview',
+                        style: Theme.of(context).textTheme.titleLarge)),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    FilterChip(
+                      label: const Text('Transparent'),
+                      selected: config.showTransparent,
+                      onSelected: (v) =>
+                          controller.updateDisplaySettings(showTransparent: v),
+                    ),
+                    FilterChip(
+                      label: const Text('Exploded'),
+                      selected: config.showExploded,
+                      onSelected: (v) =>
+                          controller.updateDisplaySettings(showExploded: v),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: LayoutBuilder(
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 400,
+              child: LayoutBuilder(
             builder: (ctx, constraints) {
               _canvasSize = constraints.biggest;
               return Stack(
@@ -309,6 +313,8 @@ class _PreviewSceneCardState extends State<PreviewSceneCard> {
           ),
         ),
       ],
+        ),
+      ),
     );
   }
 }
@@ -472,7 +478,7 @@ class ScenePainter extends CustomPainter {
           size.width / (config.width + externalDepth),
           size.height / (config.height + externalDepth),
         ) *
-        7 *
+        3.5 *
         zoom;
     final explode = config.showExploded ? 0.5 : 0.0;
     final faces = _buildFaces(explode);
@@ -515,17 +521,94 @@ class ScenePainter extends CustomPainter {
     }
 
     _drawComponentRings(canvas, center, scale);
+    _drawDimensionLines(canvas, center, scale);
 
+    // Compact info line top-left
     final labelPainter = TextPainter(
       textDirection: TextDirection.ltr,
       text: TextSpan(
         text:
-            '${config.width.toStringAsFixed(1)}" x ${config.height.toStringAsFixed(1)}" x ${externalDepth.toStringAsFixed(1)}"',
+            '${config.width.toStringAsFixed(1)}" W  ×  ${config.height.toStringAsFixed(1)}" H  ×  ${externalDepth.toStringAsFixed(1)}" D',
         style: TextStyle(
-            color: labelColor, fontWeight: FontWeight.w700, fontSize: 16),
+            color: labelColor, fontWeight: FontWeight.w700, fontSize: 13),
       ),
     )..layout();
     labelPainter.paint(canvas, const Offset(20, 16));
+  }
+
+  void _drawDimensionLines(Canvas canvas, Offset center, double scale) {
+    final halfW = config.width / 2;
+    final halfH = config.height / 2;
+    final halfD = externalDepth / 2;
+    const gap = 1.8; // inch gap from box edge to dimension line
+
+    final dimPaint = Paint()
+      ..color = const Color(0xFF7EC8E3)
+      ..strokeWidth = 1.0;
+
+    // Width line — along bottom edge, offset below (yMax side)
+    final wA = _project(_v(-halfW, halfH + gap, halfD), center, scale);
+    final wB = _project(_v(halfW, halfH + gap, halfD), center, scale);
+    canvas.drawLine(wA, wB, dimPaint);
+    _drawArrowHead3D(canvas, wA, wB, dimPaint);
+    _drawArrowHead3D(canvas, wB, wA, dimPaint);
+    _drawLabel3D(canvas, (wA + wB) / 2 + const Offset(0, 8),
+        '${config.width.toStringAsFixed(2)}"', const Color(0xFF7EC8E3));
+
+    // Height line — along left edge, offset left (xMin side)
+    final hA = _project(_v(-halfW - gap, -halfH, halfD), center, scale);
+    final hB = _project(_v(-halfW - gap, halfH, halfD), center, scale);
+    canvas.drawLine(hA, hB, dimPaint);
+    _drawArrowHead3D(canvas, hA, hB, dimPaint);
+    _drawArrowHead3D(canvas, hB, hA, dimPaint);
+    _drawLabel3D(canvas, (hA + hB) / 2 + const Offset(-28, 0),
+        '${config.height.toStringAsFixed(2)}"', const Color(0xFF7EC8E3));
+
+    // Depth line — along top-right edge
+    final dA = _project(_v(halfW + gap, -halfH - gap, halfD), center, scale);
+    final dB = _project(_v(halfW + gap, -halfH - gap, -halfD), center, scale);
+    canvas.drawLine(dA, dB, dimPaint);
+    _drawArrowHead3D(canvas, dA, dB, dimPaint);
+    _drawArrowHead3D(canvas, dB, dA, dimPaint);
+    _drawLabel3D(canvas, (dA + dB) / 2 + const Offset(6, -6),
+        '${externalDepth.toStringAsFixed(2)}"', const Color(0xFF7EC8E3));
+
+    // Tick marks at ends
+    for (final pt in [wA, wB, hA, hB, dA, dB]) {
+      canvas.drawCircle(pt, 2, Paint()..color = const Color(0xFF7EC8E3));
+    }
+  }
+
+  void _drawArrowHead3D(Canvas canvas, Offset from, Offset to, Paint paint) {
+    const size = 5.0;
+    const angle = 0.45;
+    final dir = (to - from);
+    final d = dir.distance;
+    if (d < 0.01) return;
+    final nDir = dir / d;
+    final tip = from + nDir * (size * 0.5);
+    final a = tip - Offset(
+      nDir.dx * size * math.cos(angle) - nDir.dy * size * math.sin(angle),
+      nDir.dy * size * math.cos(angle) + nDir.dx * size * math.sin(angle),
+    );
+    final b = tip - Offset(
+      nDir.dx * size * math.cos(angle) + nDir.dy * size * math.sin(angle),
+      nDir.dy * size * math.cos(angle) - nDir.dx * size * math.sin(angle),
+    );
+    canvas.drawLine(tip, a, paint);
+    canvas.drawLine(tip, b, paint);
+  }
+
+  void _drawLabel3D(Canvas canvas, Offset pos, String text, Color color) {
+    final tp = TextPainter(
+      text: TextSpan(text: text, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    // Small background pill for readability
+    final rect = Rect.fromCenter(center: pos + Offset(tp.width / 2, tp.height / 2), width: tp.width + 6, height: tp.height + 4);
+    canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(3)),
+        Paint()..color = const Color(0xCC0D1B2A));
+    tp.paint(canvas, pos);
   }
 
   @override
@@ -539,9 +622,12 @@ class ScenePainter extends CustomPainter {
   }
 
   List<_Face3D> _buildFaces(double explode) {
+    final t = config.woodThickness;
     final halfW = config.width / 2;
     final halfH = config.height / 2;
     final halfD = externalDepth / 2;
+
+    // Outer shell corners
     final xMin = -halfW - explode;
     final xMax = halfW + explode;
     final yMin = -halfH - explode;
@@ -549,84 +635,125 @@ class ScenePainter extends CustomPainter {
     final zMin = -halfD - explode;
     final zMax = halfD + explode;
 
-    return [
-      _Face3D(
-        points: [
-          _v(xMin, yMin, zMax),
-          _v(xMax, yMin, zMax),
-          _v(xMax, yMax, zMax),
-          _v(xMin, yMax, zMax)
-        ],
-        color: const Color(0xFF0F766E),
-        stroke: const Color(0xFF134E4A),
-      ),
-      _Face3D(
-        points: [
-          _v(xMin, yMin, zMin),
-          _v(xMax, yMin, zMin),
-          _v(xMax, yMax, zMin),
-          _v(xMin, yMax, zMin)
-        ],
-        color: const Color(0xFFB1D5CF),
-        stroke: const Color(0xFF134E4A),
-      ),
-      _Face3D(
-        points: [
-          _v(xMin, yMin, zMin),
-          _v(xMin, yMin, zMax),
-          _v(xMin, yMax, zMax),
-          _v(xMin, yMax, zMin)
-        ],
-        color: const Color(0xFFD9A066),
-        stroke: const Color(0xFF7C4A20),
-      ),
-      _Face3D(
-        points: [
-          _v(xMax, yMin, zMin),
-          _v(xMax, yMin, zMax),
-          _v(xMax, yMax, zMax),
-          _v(xMax, yMax, zMin)
-        ],
-        color: const Color(0xFFD9A066),
-        stroke: const Color(0xFF7C4A20),
-      ),
-      _Face3D(
-        points: [
-          _v(xMin, yMin, zMin),
-          _v(xMax, yMin, zMin),
-          _v(xMax, yMin, zMax),
-          _v(xMin, yMin, zMax)
-        ],
-        color: const Color(0xFFF1C48A),
-        stroke: const Color(0xFF7C4A20),
-      ),
-      _Face3D(
-        points: [
-          _v(xMin, yMax, zMin),
-          _v(xMax, yMax, zMin),
-          _v(xMax, yMax, zMax),
-          _v(xMin, yMax, zMax)
-        ],
-        color: const Color(0xFFF1C48A),
-        stroke: const Color(0xFF7C4A20),
-      ),
-    ];
+    // Inner cavity corners (inset by wood thickness)
+    final ixMin = xMin + t;
+    final ixMax = xMax - t;
+    final iyMin = yMin + t;
+    final iyMax = yMax - t;
+    final izMin = zMin + t;
+    final izMax = zMax - t;
+
+    // Wood colors: outer faces slightly darker, inner cavity lighter
+    const woodSide = Color(0xFFB8843A);
+    const woodSideStroke = Color(0xFF7C4A20);
+    const woodFront = Color(0xFFCB9A52);
+    const woodFrontStroke = Color(0xFF7C4A20);
+    const woodTop = Color(0xFFD9A870);
+    const cavityColor = Color(0xFF1A0F00); // dark interior
+    const cavityStroke = Color(0xFF3A2000);
+
+    final faces = <_Face3D>[];
+
+    // ── Outer faces ────────────────────────────────────────
+    // Front face (zMax)
+    faces.add(_Face3D(
+      points: [_v(xMin, yMin, zMax), _v(xMax, yMin, zMax), _v(xMax, yMax, zMax), _v(xMin, yMax, zMax)],
+      color: woodFront, stroke: woodFrontStroke,
+    ));
+    // Back face (zMin)
+    faces.add(_Face3D(
+      points: [_v(xMin, yMin, zMin), _v(xMax, yMin, zMin), _v(xMax, yMax, zMin), _v(xMin, yMax, zMin)],
+      color: woodFront.withValues(alpha: 0.85), stroke: woodFrontStroke,
+    ));
+    // Left face (xMin)
+    faces.add(_Face3D(
+      points: [_v(xMin, yMin, zMin), _v(xMin, yMin, zMax), _v(xMin, yMax, zMax), _v(xMin, yMax, zMin)],
+      color: woodSide, stroke: woodSideStroke,
+    ));
+    // Right face (xMax)
+    faces.add(_Face3D(
+      points: [_v(xMax, yMin, zMin), _v(xMax, yMin, zMax), _v(xMax, yMax, zMax), _v(xMax, yMax, zMin)],
+      color: woodSide, stroke: woodSideStroke,
+    ));
+    // Top face (yMin — y axis is inverted, yMin = visual top)
+    faces.add(_Face3D(
+      points: [_v(xMin, yMin, zMin), _v(xMax, yMin, zMin), _v(xMax, yMin, zMax), _v(xMin, yMin, zMax)],
+      color: woodTop, stroke: woodSideStroke,
+    ));
+    // Bottom face (yMax)
+    faces.add(_Face3D(
+      points: [_v(xMin, yMax, zMin), _v(xMax, yMax, zMin), _v(xMax, yMax, zMax), _v(xMin, yMax, zMax)],
+      color: woodTop.withValues(alpha: 0.85), stroke: woodSideStroke,
+    ));
+
+    // ── Inner faces (cavity walls — shown when transparent or exploded) ──
+    if (config.showTransparent || config.showExploded) {
+      // Front inner
+      faces.add(_Face3D(
+        points: [_v(ixMin, iyMin, izMax), _v(ixMax, iyMin, izMax), _v(ixMax, iyMax, izMax), _v(ixMin, iyMax, izMax)],
+        color: cavityColor, stroke: cavityStroke,
+      ));
+      // Back inner
+      faces.add(_Face3D(
+        points: [_v(ixMin, iyMin, izMin), _v(ixMax, iyMin, izMin), _v(ixMax, iyMax, izMin), _v(ixMin, iyMax, izMin)],
+        color: cavityColor, stroke: cavityStroke,
+      ));
+      // Left inner
+      faces.add(_Face3D(
+        points: [_v(ixMin, iyMin, izMin), _v(ixMin, iyMin, izMax), _v(ixMin, iyMax, izMax), _v(ixMin, iyMax, izMin)],
+        color: cavityColor, stroke: cavityStroke,
+      ));
+      // Right inner
+      faces.add(_Face3D(
+        points: [_v(ixMax, iyMin, izMin), _v(ixMax, iyMin, izMax), _v(ixMax, iyMax, izMax), _v(ixMax, iyMax, izMin)],
+        color: cavityColor, stroke: cavityStroke,
+      ));
+      // Top inner
+      faces.add(_Face3D(
+        points: [_v(ixMin, iyMin, izMin), _v(ixMax, iyMin, izMin), _v(ixMax, iyMin, izMax), _v(ixMin, iyMin, izMax)],
+        color: cavityColor, stroke: cavityStroke,
+      ));
+      // Bottom inner
+      faces.add(_Face3D(
+        points: [_v(ixMin, iyMax, izMin), _v(ixMax, iyMax, izMin), _v(ixMax, iyMax, izMax), _v(ixMin, iyMax, izMax)],
+        color: cavityColor, stroke: cavityStroke,
+      ));
+
+      // ── Wood edge cross-sections (visible cut edges) ──
+      // These L-shaped patches fill the gap between inner and outer
+      // on the visible edges (top-front horizontal edge, etc.)
+      const edgeColor = Color(0xFF8B5E2C);
+      const edgeStroke = Color(0xFF5A3A10);
+      // Top-front edge strip
+      faces.add(_Face3D(
+        points: [_v(xMin, yMin, izMax), _v(xMax, yMin, izMax), _v(xMax, iyMin, zMax), _v(xMin, iyMin, zMax)],
+        color: edgeColor, stroke: edgeStroke,
+      ));
+      // Top-back edge strip
+      faces.add(_Face3D(
+        points: [_v(xMin, yMin, izMin), _v(xMax, yMin, izMin), _v(xMax, iyMin, zMin), _v(xMin, iyMin, zMin)],
+        color: edgeColor, stroke: edgeStroke,
+      ));
+      // Bottom-front edge strip
+      faces.add(_Face3D(
+        points: [_v(xMin, yMax, izMax), _v(xMax, yMax, izMax), _v(xMax, iyMax, zMax), _v(xMin, iyMax, zMax)],
+        color: edgeColor, stroke: edgeStroke,
+      ));
+    }
+
+    return faces;
   }
 
   void _drawComponentRings(Canvas canvas, Offset center, double scale) {
     final subCenters = _componentCenters();
     for (final subCenter in subCenters) {
-      _drawRing(canvas, center, scale, subCenter, config.outerDiameter / 2,
-          const Color(0xFF111827), true);
-      _drawRing(canvas, center, scale, subCenter, config.cutoutDiameter / 2,
-          const Color(0xFFE11D48), false);
+      _draw3DSub(canvas, center, scale, subCenter);
     }
 
     if (config.isPorted) {
       final portCenter = _portCenter();
       if (config.portType == PortType.round) {
-        _drawRing(canvas, center, scale, portCenter,
-            config.roundPortDiameter / 2, const Color(0xFFC26B2D), true);
+        _draw3DAeroport(canvas, center, scale, portCenter);
       } else {
         final rectPoints = _slotPortPoints()
             .map((p) => _project(p, center, scale))
@@ -634,8 +761,7 @@ class ScenePainter extends CustomPainter {
         final path = Path()..addPolygon(rectPoints, true);
         canvas.drawPath(
           path,
-          Paint()
-            ..color = const Color(0xFFC26B2D).withValues(alpha: 0.8),
+          Paint()..color = const Color(0xFFC26B2D).withValues(alpha: 0.8),
         );
         canvas.drawPath(
           path,
@@ -654,6 +780,163 @@ class ScenePainter extends CustomPainter {
     }
 
     _drawBraces(canvas, center, scale);
+  }
+
+  // Draw a realistic 3D subwoofer: basket ring, surround, cone frustum, dust cap
+  void _draw3DSub(Canvas canvas, Offset center, double scale, _Vec3 subC) {
+    final r = config.outerDiameter / 2; // basket radius
+    final rc = config.cutoutDiameter / 2; // cutout / surround radius
+    final dustR = rc * 0.28; // dust cap radius
+    const segments = 30;
+
+    // Infer normal direction from mount side
+    final normal = _mountNormal();
+    final depth = 2.0; // cone depth in inches
+
+    // Basket ring (filled dark grey)
+    _drawRingOnFace(canvas, center, scale, subC, r, normal,
+        const Color(0xFF1F1F1F), const Color(0xFF444444), filled: true);
+    // Surround ring (rubber, reddish)
+    _drawRingOnFace(canvas, center, scale, subC, rc, normal,
+        const Color(0xFF2A0A0A), const Color(0xFFE11D48), filled: true);
+
+    // Cone: frustum from surround edge inward to dust cap, offset along normal
+    final conePoints = <_Vec3>[];
+    final capPoints = <_Vec3>[];
+    for (var i = 0; i <= segments; i++) {
+      final theta = (i / segments) * math.pi * 2;
+      // Surround edge (on face)
+      conePoints.add(_radialPoint(subC, rc, theta, normal, 0));
+      // Dust cap edge (offset along normal by cone depth)
+      capPoints.add(_radialPoint(subC, dustR, theta, normal, depth));
+    }
+
+    // Draw cone side panels as quads
+    for (var i = 0; i < segments; i++) {
+      final quad = [conePoints[i], conePoints[i + 1], capPoints[i + 1], capPoints[i]];
+      final projected = quad.map((p) => _project(p, center, scale)).toList();
+      final path = Path()..addPolygon(projected, true);
+      canvas.drawPath(path, Paint()..color = const Color(0xFF1A1A1A));
+      canvas.drawPath(path, Paint()
+        ..color = const Color(0xFF333333)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.5);
+    }
+
+    // Dust cap (filled circle at tip)
+    final capCenter3D = _Vec3(
+      subC.x + normal.x * depth,
+      subC.y + normal.y * depth,
+      subC.z + normal.z * depth,
+    );
+    _drawRingOnFace(canvas, center, scale, capCenter3D, dustR, normal,
+        const Color(0xFF555555), const Color(0xFF888888), filled: true);
+  }
+
+  // Draw 3D aeroport: cylinder tube extruded along mount normal
+  void _draw3DAeroport(Canvas canvas, Offset center, double scale, _Vec3 portC) {
+    final R = config.roundPortDiameter / 2;
+    const segments = 24;
+    final normal = _portNormal();
+    final portLen = config.portDepthInsideBox > 0
+        ? config.portDepthInsideBox
+        : math.min(externalDepth * 0.6, 8.0);
+
+    final frontRing = <_Vec3>[];
+    final backRing = <_Vec3>[];
+    for (var i = 0; i <= segments; i++) {
+      final theta = (i / segments) * math.pi * 2;
+      frontRing.add(_radialPoint(portC, R, theta, normal, 0));
+      backRing.add(_radialPoint(portC, R, theta, normal, portLen));
+    }
+
+    // Cylinder side panels
+    for (var i = 0; i < segments; i++) {
+      final quad = [frontRing[i], frontRing[i + 1], backRing[i + 1], backRing[i]];
+      final projected = quad.map((p) => _project(p, center, scale)).toList();
+      final path = Path()..addPolygon(projected, true);
+      canvas.drawPath(path, Paint()..color = const Color(0xFFA0522D).withValues(alpha: 0.85));
+      canvas.drawPath(path, Paint()
+        ..color = const Color(0xFF7C4A20)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8);
+    }
+
+    // Front opening
+    _drawRingOnFace(canvas, center, scale, portC, R, normal,
+        Colors.transparent, const Color(0xFFF97316), filled: false);
+  }
+
+  // Mount-face normal vector for sub
+  _Vec3 _mountNormal() {
+    switch (config.mountSide) {
+      case MountSide.front:  return _v(0, 0, 1);
+      case MountSide.back:   return _v(0, 0, -1);
+      case MountSide.left:   return _v(-1, 0, 0);
+      case MountSide.right:  return _v(1, 0, 0);
+      case MountSide.top:    return _v(0, -1, 0);
+      case MountSide.bottom: return _v(0, 1, 0);
+    }
+  }
+
+  // Port face normal
+  _Vec3 _portNormal() {
+    switch (config.portPlacement) {
+      case PortPlacement.rear:        return _v(0, 0, -1);
+      case PortPlacement.top:         return _v(0, -1, 0);
+      case PortPlacement.leftFront:
+      case PortPlacement.leftRear:    return _v(-1, 0, 0);
+      case PortPlacement.rightFront:
+      case PortPlacement.rightRear:   return _v(1, 0, 0);
+      default:                        return _v(0, 0, 1);
+    }
+  }
+
+  // Build a 3D point on a circle around center, on a face described by normal
+  _Vec3 _radialPoint(_Vec3 c, double r, double theta, _Vec3 n, double offset) {
+    // Build tangent axes perpendicular to normal
+    _Vec3 up;
+    if (n.x.abs() < 0.9) {
+      up = _Vec3(-n.y * 0, 1, 0); // world up
+    } else {
+      up = _Vec3(0, 0, 1);
+    }
+    // tangent = n × up
+    final tx = n.y * up.z - n.z * up.y;
+    final ty = n.z * up.x - n.x * up.z;
+    final tz = n.x * up.y - n.y * up.x;
+    final tLen = math.sqrt(tx * tx + ty * ty + tz * tz);
+    final t = _Vec3(tx / tLen, ty / tLen, tz / tLen);
+    // bitangent = n × t
+    final bx = n.y * t.z - n.z * t.y;
+    final by = n.z * t.x - n.x * t.z;
+    final bz = n.x * t.y - n.y * t.x;
+    final cosT = math.cos(theta);
+    final sinT = math.sin(theta);
+    return _Vec3(
+      c.x + (t.x * cosT + bx * sinT) * r + n.x * offset,
+      c.y + (t.y * cosT + by * sinT) * r + n.y * offset,
+      c.z + (t.z * cosT + bz * sinT) * r + n.z * offset,
+    );
+  }
+
+  // Draw a ring (filled or stroke) aligned to a face normal
+  void _drawRingOnFace(Canvas canvas, Offset center, double scale,
+      _Vec3 ringCenter, double radius, _Vec3 normal, Color fillColor, Color strokeColor,
+      {bool filled = false}) {
+    const segments = 30;
+    final points = List.generate(segments, (i) {
+      final theta = (i / segments) * math.pi * 2;
+      return _radialPoint(ringCenter, radius, theta, normal, 0);
+    }).map((p) => _project(p, center, scale)).toList();
+    final path = Path()..addPolygon(points, true);
+    if (filled && fillColor != Colors.transparent) {
+      canvas.drawPath(path, Paint()..color = fillColor);
+    }
+    canvas.drawPath(path, Paint()
+      ..color = strokeColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5);
   }
 
   List<_Vec3> _componentCenters() {

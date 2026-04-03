@@ -103,8 +103,15 @@ class BlueprintSheetPainter extends CustomPainter {
     _drawSideComponents(canvas, sideRect);
     _drawTopComponents(canvas, topRect);
 
-    _drawDimension(canvas, frontRect, config.width, config.height,
-        result.externalDepth);
+    // Dimension lines on each panel
+    _drawPanelDimensions(canvas, frontRect, config.width, config.height, showHeight: true, showWidth: true);
+    _drawPanelDimensions(canvas, sideRect, result.externalDepth, config.height, showHeight: false, showWidth: true, widthLabel: 'DEPTH');
+    _drawPanelDimensions(canvas, topRect, config.width, result.externalDepth, showHeight: false, showWidth: true, heightLabel: 'DEPTH');
+
+    // Wood thickness callout on front panel
+    _drawWoodThicknessCallout(canvas, frontRect);
+    // Port/sub info callout
+    _drawComponentCallout(canvas, size, margin, titleH);
 
     _drawTitleBlock(canvas, size, margin, titleH);
   }
@@ -326,28 +333,118 @@ class BlueprintSheetPainter extends CustomPainter {
         canvas, Offset(cx, cy), config.outerDiameter / 2 * scale + 4);
   }
 
-  void _drawDimension(Canvas canvas, Rect frontRect, double w, double h, double d) {
-    final scale = _fitScale(frontRect, w, h);
+  // Draw dimension lines on all sides of a panel  
+  void _drawPanelDimensions(Canvas canvas, Rect rect, double w, double h,
+      {bool showWidth = true, bool showHeight = true, String? widthLabel, String? heightLabel}) {
+    final scale = _fitScale(rect, w, h);
     final boxW = w * scale;
     final boxH = h * scale;
-    final ox = frontRect.left + (frontRect.width - boxW) / 2;
-    final oy = frontRect.top + (frontRect.height - boxH) / 2;
+    final ox = rect.left + (rect.width - boxW) / 2;
+    final oy = rect.top + (rect.height - boxH) / 2;
+    const off = 14.0; // pixel offset from box edge
 
-    // Width arrow (below box)
-    _drawArrow(
-      canvas,
-      Offset(ox, oy + boxH + 12),
-      Offset(ox + boxW, oy + boxH + 12),
-      '${w.toStringAsFixed(2)}"',
-    );
-    // Height arrow (left of box)
-    _drawArrow(
-      canvas,
-      Offset(ox - 12, oy + boxH),
-      Offset(ox - 12, oy),
-      '${h.toStringAsFixed(2)}"',
-      vertical: true,
-    );
+    if (showWidth) {
+      // Width arrow below
+      _drawArrow(canvas,
+        Offset(ox, oy + boxH + off),
+        Offset(ox + boxW, oy + boxH + off),
+        widthLabel != null ? '$widthLabel: ${w.toStringAsFixed(2)}"' : '${w.toStringAsFixed(2)}"',
+      );
+      // Extension lines
+      _drawExtLine(canvas, Offset(ox, oy + boxH), Offset(ox, oy + boxH + off + 2));
+      _drawExtLine(canvas, Offset(ox + boxW, oy + boxH), Offset(ox + boxW, oy + boxH + off + 2));
+    }
+
+    if (showHeight) {
+      // Height arrow left
+      _drawArrow(canvas,
+        Offset(ox - off, oy + boxH),
+        Offset(ox - off, oy),
+        heightLabel != null ? '$heightLabel: ${h.toStringAsFixed(2)}"' : '${h.toStringAsFixed(2)}"',
+        vertical: true,
+      );
+      _drawExtLine(canvas, Offset(ox, oy), Offset(ox - off - 2, oy));
+      _drawExtLine(canvas, Offset(ox, oy + boxH), Offset(ox - off - 2, oy + boxH));
+    }
+
+    // Inner cavity width (net interior)
+    if (showWidth) {
+      final t = config.woodThickness * scale;
+      final innerW = boxW - t * 2;
+      if (innerW > 20) {
+        _drawArrow(canvas,
+          Offset(ox + t, oy - off),
+          Offset(ox + t + innerW, oy - off),
+          'INT: ${(w - config.woodThickness * 2).toStringAsFixed(2)}"',
+        );
+        _drawExtLine(canvas, Offset(ox + t, oy), Offset(ox + t, oy - off - 2));
+        _drawExtLine(canvas, Offset(ox + t + innerW, oy), Offset(ox + t + innerW, oy - off - 2));
+      }
+    }
+  }
+
+  void _drawExtLine(Canvas canvas, Offset from, Offset to) {
+    canvas.drawLine(from, to, Paint()
+      ..color = _dim.withValues(alpha: 0.5)
+      ..strokeWidth = 0.6
+      ..style = PaintingStyle.stroke);
+  }
+
+  void _drawWoodThicknessCallout(Canvas canvas, Rect rect) {
+    final scale = _fitScale(rect, config.width, config.height);
+    final boxW = config.width * scale;
+    final boxH = config.height * scale;
+    final ox = rect.left + (rect.width - boxW) / 2;
+    final oy = rect.top + (rect.height - boxH) / 2;
+    final t = config.woodThickness * scale;
+
+    // Leader from top-left corner wall
+    final from = Offset(ox + t / 2, oy + t / 2);
+    final to = Offset(ox - 20, oy - 18);
+    canvas.drawLine(from, to, Paint()
+      ..color = _hatch.withValues(alpha: 0.8)
+      ..strokeWidth = 0.8);
+    canvas.drawCircle(from, 1.5, Paint()..color = _hatch);
+    _drawText(canvas, '${config.woodThickness.toStringAsFixed(3)}" MDF',
+        to + const Offset(-2, -10), _hatch, fontSize: 7.5, bold: true, alignRight: true);
+  }
+
+  void _drawComponentCallout(Canvas canvas, Size size, double margin, double titleH) {
+    // Right-side info column
+    final x = size.width - margin - 2.0;
+    var y = margin + 4.0;
+    void line(String text, Color color, {bool bold = false}) {
+      _drawText(canvas, text, Offset(x, y), color,
+          fontSize: 8.5, bold: bold, alignRight: true);
+      y += 12;
+    }
+
+    _drawText(canvas, 'SPECIFICATIONS', Offset(x, y), _titleText,
+        fontSize: 8, bold: true, alignRight: true);
+    y += 14;
+
+    line('${config.numberOfSubs}x ${config.subModel}', _label, bold: true);
+    line('Outer dia: ${config.outerDiameter.toStringAsFixed(2)}"', _dimText);
+    line('Cutout: ${config.cutoutDiameter.toStringAsFixed(2)}"', _dimText);
+    line('Mount: ${config.mountSide.label}', _dimText);
+    y += 6;
+    if (config.isPorted) {
+      line('PORT', _port, bold: true);
+      if (config.portType == PortType.round) {
+        line('Round dia: ${config.roundPortDiameter.toStringAsFixed(2)}"', _dimText);
+      } else {
+        line('Slot: ${config.slotPortWidth.toStringAsFixed(2)}" W', _dimText);
+      }
+      line('Tuning: ${config.tuning.toStringAsFixed(1)} Hz', _dimText);
+    } else {
+      line('SEALED', _label, bold: true);
+    }
+    y += 6;
+    line('Wood: ${config.woodThickness.toStringAsFixed(3)}"', _label);
+    line('Net vol: ${config.targetNetVolume.toStringAsFixed(3)} cf', _label);
+    if (config.isPorted) {
+      line('Ext depth: ${result.externalDepth.toStringAsFixed(3)}"', _label);
+    }
   }
 
   void _drawArrow(Canvas canvas, Offset from, Offset to, String label,

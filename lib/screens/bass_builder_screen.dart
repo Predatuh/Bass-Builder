@@ -12,7 +12,6 @@ import '../widgets/export_card.dart';
 import '../widgets/metrics_panel.dart';
 import '../widgets/preview_scene_card.dart';
 import '../widgets/save_load_card.dart';
-
 class BassBuilderScreen extends StatelessWidget {
   const BassBuilderScreen({super.key});
 
@@ -27,7 +26,7 @@ class BassBuilderScreen extends StatelessWidget {
         }
 
         return DefaultTabController(
-          length: 5,
+          length: 4,
           child: _ScaffoldBody(controller: controller),
         );
       },
@@ -81,6 +80,8 @@ class _ScaffoldBody extends StatelessWidget {
               children: const [
                 MetricsPanel(),
                 SizedBox(height: 16),
+                PreviewSceneCard(),
+                SizedBox(height: 16),
                 _WorkbenchTabs(),
               ],
             );
@@ -102,6 +103,8 @@ class _ScaffoldBody extends StatelessWidget {
                 ConfigForm(),
                 SizedBox(height: 16),
                 MetricsPanel(),
+                SizedBox(height: 16),
+                PreviewSceneCard(),
                 SizedBox(height: 16),
                 _WorkbenchTabs(),
               ],
@@ -133,10 +136,14 @@ class _LiveTweakFab extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _LiveTweakSheet(controller: controller),
+      builder: (_) => ChangeNotifierProvider.value(
+        value: controller,
+        child: _LiveTweakSheet(controller: controller),
+      ),
     );
   }
 }
@@ -150,115 +157,95 @@ class _LiveTweakSheet extends StatefulWidget {
 }
 
 class _LiveTweakSheetState extends State<_LiveTweakSheet> {
-  late double _width;
-  late double _height;
-  late double _volume;
-  late double _tuning;
+  late final TextEditingController _widthCtrl;
+  late final TextEditingController _heightCtrl;
+  late final TextEditingController _volumeCtrl;
+  late final TextEditingController _tuningCtrl;
+
+  // Mini-preview state
+  double _yaw = -0.55;
+  double _pitch = 0.45;
+  double _zoom = 1.0;
 
   @override
   void initState() {
     super.initState();
     final c = widget.controller.config;
-    _width = c.width;
-    _height = c.height;
-    _volume = c.targetNetVolume;
-    _tuning = c.tuning;
-  }
-
-  void _apply() {
-    widget.controller.updateConfig(
-      widget.controller.config.copyWith(
-        width: _width,
-        height: _height,
-        targetNetVolume: _volume,
-        tuning: _tuning,
-      ),
-    );
+    _widthCtrl  = TextEditingController(text: c.width.toStringAsFixed(2));
+    _heightCtrl = TextEditingController(text: c.height.toStringAsFixed(2));
+    _volumeCtrl = TextEditingController(text: c.targetNetVolume.toStringAsFixed(2));
+    _tuningCtrl = TextEditingController(text: c.tuning.toStringAsFixed(1));
   }
 
   @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final result = widget.controller.result;
+  void dispose() {
+    _widthCtrl.dispose();
+    _heightCtrl.dispose();
+    _volumeCtrl.dispose();
+    _tuningCtrl.dispose();
+    super.dispose();
+  }
 
+  void _apply() {
+    final c = widget.controller.config;
+    widget.controller.updateConfig(c.copyWith(
+      width:           double.tryParse(_widthCtrl.text)  ?? c.width,
+      height:          double.tryParse(_heightCtrl.text) ?? c.height,
+      targetNetVolume: double.tryParse(_volumeCtrl.text) ?? c.targetNetVolume,
+      tuning:          double.tryParse(_tuningCtrl.text) ?? c.tuning,
+    ));
+  }
+
+  Widget _numField(String label, TextEditingController ctrl, String suffix,
+      {double step = 0.5}) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Text('Live Tweak',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const Spacer(),
-              // Depth readout
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: cs.primaryContainer.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'Depth: ${result.externalDepth.toStringAsFixed(2)}"',
-                  style: TextStyle(
-                      color: cs.primary, fontWeight: FontWeight.w700),
-                ),
+          SizedBox(
+            width: 96,
+            child: Text(label,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+          ),
+          IconButton(
+            icon: const Icon(Icons.remove, size: 16),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            onPressed: () {
+              final v = (double.tryParse(ctrl.text) ?? 0) - step;
+              ctrl.text = v.toStringAsFixed(step < 1 ? 2 : 1);
+              _apply();
+            },
+          ),
+          Expanded(
+            child: TextFormField(
+              controller: ctrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: cs.primary, fontWeight: FontWeight.w700, fontSize: 14),
+              decoration: InputDecoration(
+                suffixText: suffix,
+                suffixStyle: TextStyle(color: cs.onSurface.withValues(alpha: 0.5), fontSize: 12),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
+              onFieldSubmitted: (_) => _apply(),
+              onEditingComplete: _apply,
+            ),
           ),
-          const SizedBox(height: 16),
-          _TweakSlider(
-            label: 'Width',
-            value: _width,
-            min: 20,
-            max: 72,
-            suffix: 'in',
-            cs: cs,
-            onChanged: (v) {
-              setState(() => _width = v);
-              _apply();
-            },
-          ),
-          _TweakSlider(
-            label: 'Height',
-            value: _height,
-            min: 10,
-            max: 36,
-            suffix: 'in',
-            cs: cs,
-            onChanged: (v) {
-              setState(() => _height = v);
-              _apply();
-            },
-          ),
-          _TweakSlider(
-            label: 'Net Volume',
-            value: _volume,
-            min: 0.5,
-            max: 20,
-            suffix: 'cf',
-            cs: cs,
-            onChanged: (v) {
-              setState(() => _volume = v);
-              _apply();
-            },
-          ),
-          _TweakSlider(
-            label: 'Tuning',
-            value: _tuning,
-            min: 20,
-            max: 60,
-            suffix: 'Hz',
-            cs: cs,
-            onChanged: (v) {
-              setState(() => _tuning = v);
+          IconButton(
+            icon: const Icon(Icons.add, size: 16),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            onPressed: () {
+              final v = (double.tryParse(ctrl.text) ?? 0) + step;
+              ctrl.text = v.toStringAsFixed(step < 1 ? 2 : 1);
               _apply();
             },
           ),
@@ -266,55 +253,97 @@ class _LiveTweakSheetState extends State<_LiveTweakSheet> {
       ),
     );
   }
-}
-
-class _TweakSlider extends StatelessWidget {
-  const _TweakSlider({
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.suffix,
-    required this.cs,
-    required this.onChanged,
-  });
-  final String label;
-  final double value;
-  final double min;
-  final double max;
-  final String suffix;
-  final ColorScheme cs;
-  final ValueChanged<double> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(label,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600)),
-            const Spacer(),
-            Text(
-              '${value.toStringAsFixed(1)} $suffix',
-              style: TextStyle(
-                  color: cs.primary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13),
+    final cs = Theme.of(context).colorScheme;
+    final controller = context.watch<BassBuilderController>();
+    final config = controller.config;
+    final result = controller.result;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (ctx, scrollCtrl) => Column(
+        children: [
+          // Handle
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: cs.onSurface.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ],
-        ),
-        Slider(
-          value: value.clamp(min, max),
-          min: min,
-          max: max,
-          onChanged: onChanged,
-        ),
-      ],
+          ),
+          // Mini 3D preview
+          SizedBox(
+            height: 220,
+            child: GestureDetector(
+              onScaleUpdate: (d) => setState(() {
+                _yaw += d.focalPointDelta.dx * 0.01;
+                _pitch -= d.focalPointDelta.dy * 0.01;
+                _zoom = (_zoom * d.scale).clamp(0.2, 5.0);
+              }),
+              child: CustomPaint(
+                painter: ScenePainter(
+                  config: config,
+                  externalDepth: result.externalDepth,
+                  yaw: _yaw,
+                  pitch: _pitch,
+                  zoom: _zoom,
+                  labelColor: cs.onSurface,
+                ),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          // Fields
+          Expanded(
+            child: SingleChildScrollView(
+              controller: scrollCtrl,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text('Live Tweak',
+                          style: Theme.of(context).textTheme.titleLarge),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: cs.primaryContainer.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Calc depth: ${result.externalDepth.toStringAsFixed(2)}"',
+                          style: TextStyle(color: cs.primary, fontWeight: FontWeight.w700, fontSize: 12),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _numField('Width', _widthCtrl, 'in', step: 0.5),
+                  _numField('Height', _heightCtrl, 'in', step: 0.5),
+                  _numField('Net Volume', _volumeCtrl, 'cf', step: 0.1),
+                  _numField('Tuning', _tuningCtrl, 'Hz', step: 1),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -337,7 +366,6 @@ class _WorkbenchTabs extends StatelessWidget {
               TabBar(
                 isScrollable: true,
                 tabs: [
-                  Tab(text: 'Preview'),
                   Tab(text: 'Blueprints'),
                   Tab(text: 'Acoustics'),
                   Tab(text: 'Cut List'),
@@ -348,7 +376,6 @@ class _WorkbenchTabs extends StatelessWidget {
               Expanded(
                 child: TabBarView(
                   children: [
-                    PreviewSceneCard(),
                     BlueprintCard(),
                     AcousticChartCard(),
                     CutListCard(),

@@ -541,7 +541,7 @@ class ScenePainter extends CustomPainter {
         path,
         Paint()
           ..color = face.color
-              .withValues(alpha: config.showTransparent ? 0.22 : 0.92)
+              .withValues(alpha: config.showTransparent ? 0.20 : 1.0)
           ..style = PaintingStyle.fill,
       );
       canvas.drawPath(
@@ -695,6 +695,7 @@ class ScenePainter extends CustomPainter {
     const cavityColor = Color(0xFF1A0F00);
     const cavityStroke = Color(0xFF3A2000);
 
+    final showInterior = config.showTransparent || config.showExploded;
     final faces = <_Face3D>[];
 
     // ── Front baffle: render each layer as a separate 3D slab ──
@@ -702,18 +703,17 @@ class ScenePainter extends CustomPainter {
       final zOuter = zMax - (t * layer);
       final zInner = zMax - (t * (layer + 1));
       final color = layer.isEven ? woodFront : woodFrontAlt;
-      // Outer face
+      // Outer face (always)
       faces.add(_Face3D(points: [_v(xMin, yMin, zOuter), _v(xMax, yMin, zOuter), _v(xMax, yMax, zOuter), _v(xMin, yMax, zOuter)], color: color, stroke: woodFrontStroke));
-      // Inner face
-      faces.add(_Face3D(points: [_v(xMin, yMin, zInner), _v(xMax, yMin, zInner), _v(xMax, yMax, zInner), _v(xMin, yMax, zInner)], color: woodEdge, stroke: woodEdgeStroke));
-      // Top edge slab
+      // Edge slabs showing thickness (always visible from sides)
       faces.add(_Face3D(points: [_v(xMin, yMin, zOuter), _v(xMax, yMin, zOuter), _v(xMax, yMin, zInner), _v(xMin, yMin, zInner)], color: woodEdge, stroke: woodEdgeStroke));
-      // Bottom edge slab
       faces.add(_Face3D(points: [_v(xMin, yMax, zOuter), _v(xMax, yMax, zOuter), _v(xMax, yMax, zInner), _v(xMin, yMax, zInner)], color: woodEdge, stroke: woodEdgeStroke));
-      // Left edge slab
       faces.add(_Face3D(points: [_v(xMin, yMin, zOuter), _v(xMin, yMax, zOuter), _v(xMin, yMax, zInner), _v(xMin, yMin, zInner)], color: woodEdge, stroke: woodEdgeStroke));
-      // Right edge slab
       faces.add(_Face3D(points: [_v(xMax, yMin, zOuter), _v(xMax, yMax, zOuter), _v(xMax, yMax, zInner), _v(xMax, yMin, zInner)], color: woodEdge, stroke: woodEdgeStroke));
+      // Inner face only when transparent
+      if (showInterior) {
+        faces.add(_Face3D(points: [_v(xMin, yMin, zInner), _v(xMax, yMin, zInner), _v(xMax, yMax, zInner), _v(xMin, yMax, zInner)], color: woodEdge, stroke: woodEdgeStroke));
+      }
     }
 
     // ── Back panel: render each layer as a 3D slab ──
@@ -722,9 +722,11 @@ class ScenePainter extends CustomPainter {
       final zInner = zMin + (t * (layer + 1));
       final color = layer.isEven ? woodFront.withValues(alpha: 0.85) : woodFrontAlt.withValues(alpha: 0.85);
       faces.add(_Face3D(points: [_v(xMin, yMin, zOuter), _v(xMax, yMin, zOuter), _v(xMax, yMax, zOuter), _v(xMin, yMax, zOuter)], color: color, stroke: woodFrontStroke));
-      faces.add(_Face3D(points: [_v(xMin, yMin, zInner), _v(xMax, yMin, zInner), _v(xMax, yMax, zInner), _v(xMin, yMax, zInner)], color: woodEdge, stroke: woodEdgeStroke));
       faces.add(_Face3D(points: [_v(xMin, yMin, zOuter), _v(xMax, yMin, zOuter), _v(xMax, yMin, zInner), _v(xMin, yMin, zInner)], color: woodEdge, stroke: woodEdgeStroke));
       faces.add(_Face3D(points: [_v(xMin, yMax, zOuter), _v(xMax, yMax, zOuter), _v(xMax, yMax, zInner), _v(xMin, yMax, zInner)], color: woodEdge, stroke: woodEdgeStroke));
+      if (showInterior) {
+        faces.add(_Face3D(points: [_v(xMin, yMin, zInner), _v(xMax, yMin, zInner), _v(xMax, yMax, zInner), _v(xMin, yMax, zInner)], color: woodEdge, stroke: woodEdgeStroke));
+      }
     }
 
     // ── Side walls as 3D slabs with depth from izMin to izMax ──
@@ -736,21 +738,21 @@ class ScenePainter extends CustomPainter {
       final color = layer.isEven ? woodSide : woodSideAlt;
       // Left side outer
       faces.add(_Face3D(points: [_v(xOuterL, yMin, izMin), _v(xOuterL, yMin, izMax), _v(xOuterL, yMax, izMax), _v(xOuterL, yMax, izMin)], color: color, stroke: woodSideStroke));
-      // Left side inner
-      faces.add(_Face3D(points: [_v(xInnerL, yMin, izMin), _v(xInnerL, yMin, izMax), _v(xInnerL, yMax, izMax), _v(xInnerL, yMax, izMin)], color: woodEdge, stroke: woodEdgeStroke));
-      // Left side top edge
+      // Left side top/bottom edges (always — show thickness)
       faces.add(_Face3D(points: [_v(xOuterL, yMin, izMin), _v(xOuterL, yMin, izMax), _v(xInnerL, yMin, izMax), _v(xInnerL, yMin, izMin)], color: woodEdge, stroke: woodEdgeStroke));
-      // Left side bottom edge
       faces.add(_Face3D(points: [_v(xOuterL, yMax, izMin), _v(xOuterL, yMax, izMax), _v(xInnerL, yMax, izMax), _v(xInnerL, yMax, izMin)], color: woodEdge, stroke: woodEdgeStroke));
+      if (showInterior) {
+        faces.add(_Face3D(points: [_v(xInnerL, yMin, izMin), _v(xInnerL, yMin, izMax), _v(xInnerL, yMax, izMax), _v(xInnerL, yMax, izMin)], color: woodEdge, stroke: woodEdgeStroke));
+      }
 
       // Right side outer
       faces.add(_Face3D(points: [_v(xOuterR, yMin, izMin), _v(xOuterR, yMin, izMax), _v(xOuterR, yMax, izMax), _v(xOuterR, yMax, izMin)], color: color, stroke: woodSideStroke));
-      // Right side inner
-      faces.add(_Face3D(points: [_v(xInnerR, yMin, izMin), _v(xInnerR, yMin, izMax), _v(xInnerR, yMax, izMax), _v(xInnerR, yMax, izMin)], color: woodEdge, stroke: woodEdgeStroke));
-      // Right side top edge
+      // Right side top/bottom edges (always — show thickness)
       faces.add(_Face3D(points: [_v(xOuterR, yMin, izMin), _v(xOuterR, yMin, izMax), _v(xInnerR, yMin, izMax), _v(xInnerR, yMin, izMin)], color: woodEdge, stroke: woodEdgeStroke));
-      // Right side bottom edge
       faces.add(_Face3D(points: [_v(xOuterR, yMax, izMin), _v(xOuterR, yMax, izMax), _v(xInnerR, yMax, izMax), _v(xInnerR, yMax, izMin)], color: woodEdge, stroke: woodEdgeStroke));
+      if (showInterior) {
+        faces.add(_Face3D(points: [_v(xInnerR, yMin, izMin), _v(xInnerR, yMin, izMax), _v(xInnerR, yMax, izMax), _v(xInnerR, yMax, izMin)], color: woodEdge, stroke: woodEdgeStroke));
+      }
     }
 
     // ── Top / Bottom walls as 3D slabs ──
@@ -762,23 +764,24 @@ class ScenePainter extends CustomPainter {
       final color = layer.isEven ? woodTop : woodTopAlt;
       // Top outer
       faces.add(_Face3D(points: [_v(xMin, yOuterT, izMin), _v(xMax, yOuterT, izMin), _v(xMax, yOuterT, izMax), _v(xMin, yOuterT, izMax)], color: color, stroke: woodSideStroke));
-      // Top inner
-      faces.add(_Face3D(points: [_v(xMin, yInnerT, izMin), _v(xMax, yInnerT, izMin), _v(xMax, yInnerT, izMax), _v(xMin, yInnerT, izMax)], color: woodEdge, stroke: woodEdgeStroke));
-      // Top front edge
+      // Top front/back edges (always — show thickness)
       faces.add(_Face3D(points: [_v(xMin, yOuterT, izMax), _v(xMax, yOuterT, izMax), _v(xMax, yInnerT, izMax), _v(xMin, yInnerT, izMax)], color: woodEdge, stroke: woodEdgeStroke));
-      // Top back edge
       faces.add(_Face3D(points: [_v(xMin, yOuterT, izMin), _v(xMax, yOuterT, izMin), _v(xMax, yInnerT, izMin), _v(xMin, yInnerT, izMin)], color: woodEdge, stroke: woodEdgeStroke));
+      if (showInterior) {
+        faces.add(_Face3D(points: [_v(xMin, yInnerT, izMin), _v(xMax, yInnerT, izMin), _v(xMax, yInnerT, izMax), _v(xMin, yInnerT, izMax)], color: woodEdge, stroke: woodEdgeStroke));
+      }
 
       // Bottom outer
       faces.add(_Face3D(points: [_v(xMin, yOuterB, izMin), _v(xMax, yOuterB, izMin), _v(xMax, yOuterB, izMax), _v(xMin, yOuterB, izMax)], color: color.withValues(alpha: 0.85), stroke: woodSideStroke));
-      // Bottom inner
-      faces.add(_Face3D(points: [_v(xMin, yInnerB, izMin), _v(xMax, yInnerB, izMin), _v(xMax, yInnerB, izMax), _v(xMin, yInnerB, izMax)], color: woodEdge, stroke: woodEdgeStroke));
-      // Bottom front edge
+      // Bottom front edge (always)
       faces.add(_Face3D(points: [_v(xMin, yOuterB, izMax), _v(xMax, yOuterB, izMax), _v(xMax, yInnerB, izMax), _v(xMin, yInnerB, izMax)], color: woodEdge, stroke: woodEdgeStroke));
+      if (showInterior) {
+        faces.add(_Face3D(points: [_v(xMin, yInnerB, izMin), _v(xMax, yInnerB, izMin), _v(xMax, yInnerB, izMax), _v(xMin, yInnerB, izMax)], color: woodEdge, stroke: woodEdgeStroke));
+      }
     }
 
-    // ── Inner cavity faces (visible when transparent or exploded) ──
-    if (config.showTransparent || config.showExploded) {
+    // ── Inner cavity faces (only when transparent or exploded) ──
+    if (showInterior) {
       faces.add(_Face3D(points: [_v(ixMin, iyMin, izMax), _v(ixMax, iyMin, izMax), _v(ixMax, iyMax, izMax), _v(ixMin, iyMax, izMax)], color: cavityColor, stroke: cavityStroke));
       faces.add(_Face3D(points: [_v(ixMin, iyMin, izMin), _v(ixMax, iyMin, izMin), _v(ixMax, iyMax, izMin), _v(ixMin, iyMax, izMin)], color: cavityColor, stroke: cavityStroke));
       faces.add(_Face3D(points: [_v(ixMin, iyMin, izMin), _v(ixMin, iyMin, izMax), _v(ixMin, iyMax, izMax), _v(ixMin, iyMax, izMin)], color: cavityColor, stroke: cavityStroke));
@@ -787,8 +790,8 @@ class ScenePainter extends CustomPainter {
       faces.add(_Face3D(points: [_v(ixMin, iyMax, izMin), _v(ixMax, iyMax, izMin), _v(ixMax, iyMax, izMax), _v(ixMin, iyMax, izMax)], color: cavityColor, stroke: cavityStroke));
     }
 
-    // ── Slot port interior boards (drawn inside the box) ──
-    if (config.isPorted && config.portType == PortType.slot) {
+    // ── Slot port interior boards (only when transparent or exploded) ──
+    if (showInterior && config.isPorted && config.portType == PortType.slot) {
       _addSlotPortInterior(faces, ixMin, ixMax, iyMin, iyMax, izMin, izMax);
     }
 
@@ -841,36 +844,60 @@ class ScenePainter extends CustomPainter {
     }
   }
 
-  void _drawComponentRings(Canvas canvas, Offset center, double scale) {
-    final subCenters = _componentCenters();
-    for (final subCenter in subCenters) {
-      _draw3DSub(canvas, center, scale, subCenter);
-    }
+  // Returns true if a face with the given object-space normal is currently facing the viewer.
+  bool _isFaceVisible(_Vec3 normal) {
+    final rotY = _Vec3(
+      (normal.x * math.cos(yaw)) - (normal.z * math.sin(yaw)),
+      normal.y,
+      (normal.x * math.sin(yaw)) + (normal.z * math.cos(yaw)),
+    );
+    final rot = _Vec3(
+      rotY.x,
+      (rotY.y * math.cos(pitch)) - (rotY.z * math.sin(pitch)),
+      (rotY.y * math.sin(pitch)) + (rotY.z * math.cos(pitch)),
+    );
+    return rot.z > 0;
+  }
 
-    if (config.isPorted) {
-      final portCenter = _portCenter();
-      if (config.portType == PortType.round) {
-        _draw3DAeroport(canvas, center, scale, portCenter);
-      } else {
-        final rectPoints = _slotPortPoints()
-            .map((p) => _project(p, center, scale))
-            .toList();
-        final path = Path()..addPolygon(rectPoints, true);
-        canvas.drawPath(
-          path,
-          Paint()..color = const Color(0xFFC26B2D).withValues(alpha: 0.8),
-        );
-        canvas.drawPath(
-          path,
-          Paint()
-            ..color = const Color(0xFF7C4A20)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.5,
-        );
+  void _drawComponentRings(Canvas canvas, Offset center, double scale) {
+    // Only draw sub/port on their face when that face is visible (or transparent mode)
+    final mountNormal = _mountNormal();
+    final subFaceVisible = config.showTransparent || _isFaceVisible(mountNormal);
+    if (subFaceVisible) {
+      final subCenters = _componentCenters();
+      for (final subCenter in subCenters) {
+        _draw3DSub(canvas, center, scale, subCenter);
       }
     }
 
-    if (config.showTerminal) {
+    if (config.isPorted) {
+      final portNormalVec = _portNormal();
+      final portFaceVisible = config.showTransparent || _isFaceVisible(portNormalVec);
+      if (portFaceVisible) {
+        final portCenter = _portCenter();
+        if (config.portType == PortType.round) {
+          _draw3DAeroport(canvas, center, scale, portCenter);
+        } else {
+          final rectPoints = _slotPortPoints()
+              .map((p) => _project(p, center, scale))
+              .toList();
+          final path = Path()..addPolygon(rectPoints, true);
+          canvas.drawPath(
+            path,
+            Paint()..color = const Color(0xFFC26B2D).withValues(alpha: 0.8),
+          );
+          canvas.drawPath(
+            path,
+            Paint()
+              ..color = const Color(0xFF7C4A20)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.5,
+          );
+        }
+      }
+    }
+
+    if (config.showTerminal && _isFaceVisible(_v(0, 0, 1))) {
       final terminalCenter = _terminalCenter();
       _drawRing(canvas, center, scale, terminalCenter, 1.75,
           const Color(0xFFEAB308), false);

@@ -750,7 +750,30 @@ else:
 
 max_w = st.sidebar.number_input("Width (in)", value=default_w)
 max_h = st.sidebar.number_input("Height (in)", value=default_h)
-net_v = st.sidebar.number_input("Target Net Volume (cf)", value=6.2)
+
+use_exact_dims = st.sidebar.checkbox(
+    "⚙️ Precision Override — Use Exact Depth",
+    value=False,
+    help="Enter your own exact external depth; net volume will be back-calculated from your dimensions."
+)
+if use_exact_dims:
+    exact_edv = st.sidebar.number_input(
+        "External Depth (in)",
+        value=18.0,
+        min_value=4.0,
+        max_value=72.0,
+        step=0.125,
+        format="%.3f",
+        help="Your exact external depth front-to-back. Net volume will be calculated from W × H × this depth."
+    )
+    net_v = st.sidebar.number_input(
+        "Estimated Net Volume (cf)",
+        value=6.2,
+        help="Used for port length estimation only — actual net volume is calculated from your exact depth below."
+    )
+else:
+    exact_edv = None
+    net_v = st.sidebar.number_input("Target Net Volume (cf)", value=6.2)
 
 # Determine 4th vs 6th order bandpass
 is_4th_order = enclosure_type == "4th Order Bandpass"
@@ -1841,6 +1864,22 @@ iw = max_w - (wood * 2) - extra_s
 ih = max_h - (wood * 2) - extra_tb
 idv = (gross * 1728) / (iw * ih)
 edv = idv + wood + bt + extra_b
+
+# --- Precision Override: user-supplied exact external depth ---
+if use_exact_dims and exact_edv is not None:
+    edv = exact_edv
+    idv = exact_edv - wood - bt - extra_b
+    if idv <= 0:
+        st.error("⚠️ Precision Override: Entered depth is too shallow for the selected wood thickness and layers. Increase depth or reduce front/back layers.")
+        idv = max(0.5, idv)  # prevent divide-by-zero downstream
+    gross = (iw * ih * idv) / 1728
+    net_v = gross - total_sub_disp - pd - brace_disp - divider_disp + b_gain
+    st.sidebar.success(
+        f"📐 **Precision Mode Active**\n\n"
+        f"Your **{exact_edv:.3f}\"** depth → "
+        f"**{net_v:.3f} cf** net volume\n\n"
+        f"Gross: {gross:.3f} cf | Displacements: {(total_sub_disp + pd + brace_disp + divider_disp):.3f} cf"
+    )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FINAL SLOT PORT CALCULATIONS (now that we have actual interior dimensions)

@@ -669,12 +669,27 @@ class ScenePainter extends CustomPainter {
     final zMin = -halfD - explode;
     final zMax = halfD + explode;
 
-    // Wood colors — subtly different per orientation for realism
-    const woodSide = Color(0xFFB8843A);
-    const woodSideStroke = Color(0xFF7C4A20);
+    // Inner shell corners (cavity)
+    final sideThick = t * config.sideLayers;
+    final tbThick = t * config.topBottomLayers;
+    final frontThick = t * config.frontLayers;
+    final backThick = t * config.backLayers;
+    final ixMin = xMin + sideThick;
+    final ixMax = xMax - sideThick;
+    final iyMin = yMin + tbThick;
+    final iyMax = yMax - tbThick;
+    final izMin = zMin + backThick;
+    final izMax = zMax - frontThick;
+
+    // Wood colors — alternating layers + per-face
     const woodFront = Color(0xFFCB9A52);
+    const woodFrontAlt = Color(0xFFD9A870);
     const woodFrontStroke = Color(0xFF7C4A20);
+    const woodSide = Color(0xFFB8843A);
+    const woodSideAlt = Color(0xFFC49548);
+    const woodSideStroke = Color(0xFF7C4A20);
     const woodTop = Color(0xFFD9A870);
+    const woodTopAlt = Color(0xFFCB9A52);
     const woodEdge = Color(0xFF8B5E2C);
     const woodEdgeStroke = Color(0xFF5A3A10);
     const cavityColor = Color(0xFF1A0F00);
@@ -682,136 +697,148 @@ class ScenePainter extends CustomPainter {
 
     final faces = <_Face3D>[];
 
-    // ── Front baffle layers (multi-layer support) ──
-    final frontThick = t * config.frontLayers;
-    final backThick = t * config.backLayers;
-
-    // Outer front face
-    faces.add(_Face3D(
-      points: [_v(xMin, yMin, zMax), _v(xMax, yMin, zMax), _v(xMax, yMax, zMax), _v(xMin, yMax, zMax)],
-      color: woodFront, stroke: woodFrontStroke,
-    ));
-
-    // Show individual front layers if >1
-    if (config.frontLayers > 1) {
-      for (var layer = 1; layer < config.frontLayers; layer++) {
-        final layerZ = zMax - (t * layer);
-        faces.add(_Face3D(
-          points: [_v(xMin, yMin, layerZ), _v(xMax, yMin, layerZ), _v(xMax, yMax, layerZ), _v(xMin, yMax, layerZ)],
-          color: woodEdge, stroke: woodEdgeStroke,
-        ));
-      }
+    // ── Front baffle: render each layer as a separate 3D slab ──
+    for (var layer = 0; layer < config.frontLayers; layer++) {
+      final zOuter = zMax - (t * layer);
+      final zInner = zMax - (t * (layer + 1));
+      final color = layer.isEven ? woodFront : woodFrontAlt;
+      // Outer face
+      faces.add(_Face3D(points: [_v(xMin, yMin, zOuter), _v(xMax, yMin, zOuter), _v(xMax, yMax, zOuter), _v(xMin, yMax, zOuter)], color: color, stroke: woodFrontStroke));
+      // Inner face
+      faces.add(_Face3D(points: [_v(xMin, yMin, zInner), _v(xMax, yMin, zInner), _v(xMax, yMax, zInner), _v(xMin, yMax, zInner)], color: woodEdge, stroke: woodEdgeStroke));
+      // Top edge slab
+      faces.add(_Face3D(points: [_v(xMin, yMin, zOuter), _v(xMax, yMin, zOuter), _v(xMax, yMin, zInner), _v(xMin, yMin, zInner)], color: woodEdge, stroke: woodEdgeStroke));
+      // Bottom edge slab
+      faces.add(_Face3D(points: [_v(xMin, yMax, zOuter), _v(xMax, yMax, zOuter), _v(xMax, yMax, zInner), _v(xMin, yMax, zInner)], color: woodEdge, stroke: woodEdgeStroke));
+      // Left edge slab
+      faces.add(_Face3D(points: [_v(xMin, yMin, zOuter), _v(xMin, yMax, zOuter), _v(xMin, yMax, zInner), _v(xMin, yMin, zInner)], color: woodEdge, stroke: woodEdgeStroke));
+      // Right edge slab
+      faces.add(_Face3D(points: [_v(xMax, yMin, zOuter), _v(xMax, yMax, zOuter), _v(xMax, yMax, zInner), _v(xMax, yMin, zInner)], color: woodEdge, stroke: woodEdgeStroke));
     }
 
-    // Back face
-    faces.add(_Face3D(
-      points: [_v(xMin, yMin, zMin), _v(xMax, yMin, zMin), _v(xMax, yMax, zMin), _v(xMin, yMax, zMin)],
-      color: woodFront.withValues(alpha: 0.85), stroke: woodFrontStroke,
-    ));
-
-    // Show individual back layers if >1
-    if (config.backLayers > 1) {
-      for (var layer = 1; layer < config.backLayers; layer++) {
-        final layerZ = zMin + (t * layer);
-        faces.add(_Face3D(
-          points: [_v(xMin, yMin, layerZ), _v(xMax, yMin, layerZ), _v(xMax, yMax, layerZ), _v(xMin, yMax, layerZ)],
-          color: woodEdge, stroke: woodEdgeStroke,
-        ));
-      }
+    // ── Back panel: render each layer as a 3D slab ──
+    for (var layer = 0; layer < config.backLayers; layer++) {
+      final zOuter = zMin + (t * layer);
+      final zInner = zMin + (t * (layer + 1));
+      final color = layer.isEven ? woodFront.withValues(alpha: 0.85) : woodFrontAlt.withValues(alpha: 0.85);
+      faces.add(_Face3D(points: [_v(xMin, yMin, zOuter), _v(xMax, yMin, zOuter), _v(xMax, yMax, zOuter), _v(xMin, yMax, zOuter)], color: color, stroke: woodFrontStroke));
+      faces.add(_Face3D(points: [_v(xMin, yMin, zInner), _v(xMax, yMin, zInner), _v(xMax, yMax, zInner), _v(xMin, yMax, zInner)], color: woodEdge, stroke: woodEdgeStroke));
+      faces.add(_Face3D(points: [_v(xMin, yMin, zOuter), _v(xMax, yMin, zOuter), _v(xMax, yMin, zInner), _v(xMin, yMin, zInner)], color: woodEdge, stroke: woodEdgeStroke));
+      faces.add(_Face3D(points: [_v(xMin, yMax, zOuter), _v(xMax, yMax, zOuter), _v(xMax, yMax, zInner), _v(xMin, yMax, zInner)], color: woodEdge, stroke: woodEdgeStroke));
     }
 
-    // Side faces — show thickness as depth extent between inner and outer
-    // Left face (xMin)
-    faces.add(_Face3D(
-      points: [_v(xMin, yMin, zMin), _v(xMin, yMin, zMax), _v(xMin, yMax, zMax), _v(xMin, yMax, zMin)],
-      color: woodSide, stroke: woodSideStroke,
-    ));
-    // Right face (xMax)
-    faces.add(_Face3D(
-      points: [_v(xMax, yMin, zMin), _v(xMax, yMin, zMax), _v(xMax, yMax, zMax), _v(xMax, yMax, zMin)],
-      color: woodSide, stroke: woodSideStroke,
-    ));
-    // Top face (yMin)
-    faces.add(_Face3D(
-      points: [_v(xMin, yMin, zMin), _v(xMax, yMin, zMin), _v(xMax, yMin, zMax), _v(xMin, yMin, zMax)],
-      color: woodTop, stroke: woodSideStroke,
-    ));
-    // Bottom face (yMax)
-    faces.add(_Face3D(
-      points: [_v(xMin, yMax, zMin), _v(xMax, yMax, zMin), _v(xMax, yMax, zMax), _v(xMin, yMax, zMax)],
-      color: woodTop.withValues(alpha: 0.85), stroke: woodSideStroke,
-    ));
+    // ── Side walls as 3D slabs with depth from izMin to izMax ──
+    for (var layer = 0; layer < config.sideLayers; layer++) {
+      final xOuterL = xMin + (t * layer);
+      final xInnerL = xMin + (t * (layer + 1));
+      final xOuterR = xMax - (t * layer);
+      final xInnerR = xMax - (t * (layer + 1));
+      final color = layer.isEven ? woodSide : woodSideAlt;
+      // Left side outer
+      faces.add(_Face3D(points: [_v(xOuterL, yMin, izMin), _v(xOuterL, yMin, izMax), _v(xOuterL, yMax, izMax), _v(xOuterL, yMax, izMin)], color: color, stroke: woodSideStroke));
+      // Left side inner
+      faces.add(_Face3D(points: [_v(xInnerL, yMin, izMin), _v(xInnerL, yMin, izMax), _v(xInnerL, yMax, izMax), _v(xInnerL, yMax, izMin)], color: woodEdge, stroke: woodEdgeStroke));
+      // Left side top edge
+      faces.add(_Face3D(points: [_v(xOuterL, yMin, izMin), _v(xOuterL, yMin, izMax), _v(xInnerL, yMin, izMax), _v(xInnerL, yMin, izMin)], color: woodEdge, stroke: woodEdgeStroke));
+      // Left side bottom edge
+      faces.add(_Face3D(points: [_v(xOuterL, yMax, izMin), _v(xOuterL, yMax, izMax), _v(xInnerL, yMax, izMax), _v(xInnerL, yMax, izMin)], color: woodEdge, stroke: woodEdgeStroke));
 
-    // ── Inner faces (cavity walls — shown when transparent or exploded) ──
-    if (config.showTransparent || config.showExploded) {
-      final sideThick = t * config.sideLayers;
-      final tbThick = t * config.topBottomLayers;
-      final ixMin = xMin + sideThick;
-      final ixMax = xMax - sideThick;
-      final iyMin = yMin + tbThick;
-      final iyMax = yMax - tbThick;
-      final izMin = zMin + backThick;
-      final izMax = zMax - frontThick;
+      // Right side outer
+      faces.add(_Face3D(points: [_v(xOuterR, yMin, izMin), _v(xOuterR, yMin, izMax), _v(xOuterR, yMax, izMax), _v(xOuterR, yMax, izMin)], color: color, stroke: woodSideStroke));
+      // Right side inner
+      faces.add(_Face3D(points: [_v(xInnerR, yMin, izMin), _v(xInnerR, yMin, izMax), _v(xInnerR, yMax, izMax), _v(xInnerR, yMax, izMin)], color: woodEdge, stroke: woodEdgeStroke));
+      // Right side top edge
+      faces.add(_Face3D(points: [_v(xOuterR, yMin, izMin), _v(xOuterR, yMin, izMax), _v(xInnerR, yMin, izMax), _v(xInnerR, yMin, izMin)], color: woodEdge, stroke: woodEdgeStroke));
+      // Right side bottom edge
+      faces.add(_Face3D(points: [_v(xOuterR, yMax, izMin), _v(xOuterR, yMax, izMax), _v(xInnerR, yMax, izMax), _v(xInnerR, yMax, izMin)], color: woodEdge, stroke: woodEdgeStroke));
+    }
 
-      // Front inner
-      faces.add(_Face3D(
-        points: [_v(ixMin, iyMin, izMax), _v(ixMax, iyMin, izMax), _v(ixMax, iyMax, izMax), _v(ixMin, iyMax, izMax)],
-        color: cavityColor, stroke: cavityStroke,
-      ));
-      // Back inner
-      faces.add(_Face3D(
-        points: [_v(ixMin, iyMin, izMin), _v(ixMax, iyMin, izMin), _v(ixMax, iyMax, izMin), _v(ixMin, iyMax, izMin)],
-        color: cavityColor, stroke: cavityStroke,
-      ));
-      // Left inner
-      faces.add(_Face3D(
-        points: [_v(ixMin, iyMin, izMin), _v(ixMin, iyMin, izMax), _v(ixMin, iyMax, izMax), _v(ixMin, iyMax, izMin)],
-        color: cavityColor, stroke: cavityStroke,
-      ));
-      // Right inner
-      faces.add(_Face3D(
-        points: [_v(ixMax, iyMin, izMin), _v(ixMax, iyMin, izMax), _v(ixMax, iyMax, izMax), _v(ixMax, iyMax, izMin)],
-        color: cavityColor, stroke: cavityStroke,
-      ));
+    // ── Top / Bottom walls as 3D slabs ──
+    for (var layer = 0; layer < config.topBottomLayers; layer++) {
+      final yOuterT = yMin + (t * layer);
+      final yInnerT = yMin + (t * (layer + 1));
+      final yOuterB = yMax - (t * layer);
+      final yInnerB = yMax - (t * (layer + 1));
+      final color = layer.isEven ? woodTop : woodTopAlt;
+      // Top outer
+      faces.add(_Face3D(points: [_v(xMin, yOuterT, izMin), _v(xMax, yOuterT, izMin), _v(xMax, yOuterT, izMax), _v(xMin, yOuterT, izMax)], color: color, stroke: woodSideStroke));
       // Top inner
-      faces.add(_Face3D(
-        points: [_v(ixMin, iyMin, izMin), _v(ixMax, iyMin, izMin), _v(ixMax, iyMin, izMax), _v(ixMin, iyMin, izMax)],
-        color: cavityColor, stroke: cavityStroke,
-      ));
-      // Bottom inner
-      faces.add(_Face3D(
-        points: [_v(ixMin, iyMax, izMin), _v(ixMax, iyMax, izMin), _v(ixMax, iyMax, izMax), _v(ixMin, iyMax, izMax)],
-        color: cavityColor, stroke: cavityStroke,
-      ));
+      faces.add(_Face3D(points: [_v(xMin, yInnerT, izMin), _v(xMax, yInnerT, izMin), _v(xMax, yInnerT, izMax), _v(xMin, yInnerT, izMax)], color: woodEdge, stroke: woodEdgeStroke));
+      // Top front edge
+      faces.add(_Face3D(points: [_v(xMin, yOuterT, izMax), _v(xMax, yOuterT, izMax), _v(xMax, yInnerT, izMax), _v(xMin, yInnerT, izMax)], color: woodEdge, stroke: woodEdgeStroke));
+      // Top back edge
+      faces.add(_Face3D(points: [_v(xMin, yOuterT, izMin), _v(xMax, yOuterT, izMin), _v(xMax, yInnerT, izMin), _v(xMin, yInnerT, izMin)], color: woodEdge, stroke: woodEdgeStroke));
 
-      // ── Wood edge cross-sections (visible cut edges showing thickness) ──
-      // Top-front edge strip (shows front baffle thickness)
-      faces.add(_Face3D(
-        points: [_v(xMin, yMin, izMax), _v(xMax, yMin, izMax), _v(xMax, yMin, zMax), _v(xMin, yMin, zMax)],
-        color: woodEdge, stroke: woodEdgeStroke,
-      ));
-      // Top-back edge strip
-      faces.add(_Face3D(
-        points: [_v(xMin, yMin, izMin), _v(xMax, yMin, izMin), _v(xMax, yMin, zMin), _v(xMin, yMin, zMin)],
-        color: woodEdge, stroke: woodEdgeStroke,
-      ));
-      // Bottom-front edge strip
-      faces.add(_Face3D(
-        points: [_v(xMin, yMax, izMax), _v(xMax, yMax, izMax), _v(xMax, yMax, zMax), _v(xMin, yMax, zMax)],
-        color: woodEdge, stroke: woodEdgeStroke,
-      ));
-      // Side edge strips (showing side thickness)
-      faces.add(_Face3D(
-        points: [_v(xMin, yMin, zMin), _v(xMin, yMin, zMax), _v(ixMin, yMin, zMax), _v(ixMin, yMin, zMin)],
-        color: woodEdge, stroke: woodEdgeStroke,
-      ));
-      faces.add(_Face3D(
-        points: [_v(xMax, yMin, zMin), _v(xMax, yMin, zMax), _v(ixMax, yMin, zMax), _v(ixMax, yMin, zMin)],
-        color: woodEdge, stroke: woodEdgeStroke,
-      ));
+      // Bottom outer
+      faces.add(_Face3D(points: [_v(xMin, yOuterB, izMin), _v(xMax, yOuterB, izMin), _v(xMax, yOuterB, izMax), _v(xMin, yOuterB, izMax)], color: color.withValues(alpha: 0.85), stroke: woodSideStroke));
+      // Bottom inner
+      faces.add(_Face3D(points: [_v(xMin, yInnerB, izMin), _v(xMax, yInnerB, izMin), _v(xMax, yInnerB, izMax), _v(xMin, yInnerB, izMax)], color: woodEdge, stroke: woodEdgeStroke));
+      // Bottom front edge
+      faces.add(_Face3D(points: [_v(xMin, yOuterB, izMax), _v(xMax, yOuterB, izMax), _v(xMax, yInnerB, izMax), _v(xMin, yInnerB, izMax)], color: woodEdge, stroke: woodEdgeStroke));
+    }
+
+    // ── Inner cavity faces (visible when transparent or exploded) ──
+    if (config.showTransparent || config.showExploded) {
+      faces.add(_Face3D(points: [_v(ixMin, iyMin, izMax), _v(ixMax, iyMin, izMax), _v(ixMax, iyMax, izMax), _v(ixMin, iyMax, izMax)], color: cavityColor, stroke: cavityStroke));
+      faces.add(_Face3D(points: [_v(ixMin, iyMin, izMin), _v(ixMax, iyMin, izMin), _v(ixMax, iyMax, izMin), _v(ixMin, iyMax, izMin)], color: cavityColor, stroke: cavityStroke));
+      faces.add(_Face3D(points: [_v(ixMin, iyMin, izMin), _v(ixMin, iyMin, izMax), _v(ixMin, iyMax, izMax), _v(ixMin, iyMax, izMin)], color: cavityColor, stroke: cavityStroke));
+      faces.add(_Face3D(points: [_v(ixMax, iyMin, izMin), _v(ixMax, iyMin, izMax), _v(ixMax, iyMax, izMax), _v(ixMax, iyMax, izMin)], color: cavityColor, stroke: cavityStroke));
+      faces.add(_Face3D(points: [_v(ixMin, iyMin, izMin), _v(ixMax, iyMin, izMin), _v(ixMax, iyMin, izMax), _v(ixMin, iyMin, izMax)], color: cavityColor, stroke: cavityStroke));
+      faces.add(_Face3D(points: [_v(ixMin, iyMax, izMin), _v(ixMax, iyMax, izMin), _v(ixMax, iyMax, izMax), _v(ixMin, iyMax, izMax)], color: cavityColor, stroke: cavityStroke));
+    }
+
+    // ── Slot port interior boards (drawn inside the box) ──
+    if (config.isPorted && config.portType == PortType.slot) {
+      _addSlotPortInterior(faces, ixMin, ixMax, iyMin, iyMax, izMin, izMax);
     }
 
     return faces;
+  }
+
+  void _addSlotPortInterior(List<_Face3D> faces, double ixMin, double ixMax, double iyMin, double iyMax, double izMin, double izMax) {
+    final portLen = result?.portLength ?? 0.0;
+    if (portLen <= 0) return;
+    final internalDepth = izMax - izMin;
+    final slotW = config.slotPortWidth;
+    final portX = config.portX - config.width / 2;
+
+    // Port position on front baffle
+    final divXMin = portX - slotW / 2;
+    final divXMax = portX + slotW / 2;
+    const boardColor = Color(0xFFB8843A);
+    const boardStroke = Color(0xFF7C4A20);
+    const airColor = Color(0xFF1A3050);
+    const airStroke = Color(0xFF2A4868);
+
+    final slotNeedsBend = result?.slotNeedsBend ?? false;
+    final leg1 = result?.slotLeg1Length ?? portLen;
+
+    // Main divider board (runs from front baffle inward along leg1)
+    final divZ1 = izMax;
+    final divZ2 = izMax - math.min(leg1, internalDepth);
+
+    // Left divider wall
+    faces.add(_Face3D(points: [_v(divXMin, iyMin, divZ1), _v(divXMin, iyMin, divZ2), _v(divXMin, iyMax, divZ2), _v(divXMin, iyMax, divZ1)], color: boardColor, stroke: boardStroke));
+    // Right divider wall
+    faces.add(_Face3D(points: [_v(divXMax, iyMin, divZ1), _v(divXMax, iyMin, divZ2), _v(divXMax, iyMax, divZ2), _v(divXMax, iyMax, divZ1)], color: boardColor, stroke: boardStroke));
+
+    // Air channel visualization
+    faces.add(_Face3D(points: [_v(divXMin, iyMin, divZ1), _v(divXMax, iyMin, divZ1), _v(divXMax, iyMin, divZ2), _v(divXMin, iyMin, divZ2)], color: airColor, stroke: airStroke));
+
+    // L-bend: if port needs bend, draw the second leg running sideways
+    if (slotNeedsBend) {
+      final leg2 = result?.slotLeg2Length ?? 0.0;
+      if (leg2 > 0) {
+        // End board (connects leg1 to leg2)
+        faces.add(_Face3D(points: [_v(divXMin, iyMin, divZ2), _v(divXMax, iyMin, divZ2), _v(divXMax, iyMax, divZ2), _v(divXMin, iyMax, divZ2)], color: boardColor, stroke: boardStroke));
+        // Leg2 runs along the back wall
+        final leg2End = divXMax + leg2;
+        final bendXMax = math.min(leg2End, ixMax);
+        // Outer board of leg2 (shifted by slotW from back wall)
+        faces.add(_Face3D(points: [_v(divXMax, iyMin, divZ2), _v(bendXMax, iyMin, divZ2), _v(bendXMax, iyMax, divZ2), _v(divXMax, iyMax, divZ2)], color: boardColor, stroke: boardStroke));
+        faces.add(_Face3D(points: [_v(divXMax, iyMin, divZ2 + slotW), _v(bendXMax, iyMin, divZ2 + slotW), _v(bendXMax, iyMax, divZ2 + slotW), _v(divXMax, iyMax, divZ2 + slotW)], color: boardColor, stroke: boardStroke));
+      }
+    }
   }
 
   void _drawComponentRings(Canvas canvas, Offset center, double scale) {

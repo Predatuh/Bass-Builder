@@ -80,6 +80,9 @@ class EnclosureResult {
     this.responseCurve3 = const [],
     this.sheetsNeeded = 0,
     this.totalPanelAreaSqFt = 0.0,
+    this.baffleGain = 0.0,
+    this.effectiveBraceDisplacement = 0.0,
+    this.dividerDisplacement = 0.0,
   });
 
   final double internalWidth;
@@ -120,4 +123,7 @@ class EnclosureResult {
   final List<ResponsePoint> responseCurve3;
   final int sheetsNeeded;
   final double totalPanelAreaSqFt;
+  final double baffleGain;
+  final double effectiveBraceDisplacement;
+  final double dividerDisplacement;
 }

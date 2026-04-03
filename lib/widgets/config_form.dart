@@ -111,6 +111,7 @@ class ConfigForm extends StatelessWidget {
             // ── Subwoofer Details (editable) ──────────────────────────────────
             _CollapsibleSection(
               title: 'Subwoofer Details',
+              initiallyExpanded: currentManufacturer == 'Custom',
               children: [
                 Wrap(
                   spacing: 12,
@@ -312,6 +313,9 @@ class ConfigForm extends StatelessWidget {
                       controller.updateConfig(config.copyWith(
                         portPresetId: v,
                         roundPortDiameter: preset.innerDiameter,
+                        portACoeff: preset.aCoeff,
+                        portBCoeff: preset.bCoeff,
+                        portFlareLen: preset.flareLen,
                       ));
                     },
                   ),
@@ -687,9 +691,10 @@ class _LiveDepthHint extends StatelessWidget {
 
 // ─── Collapsible Section ──────────────────────────────────────────────────────
 class _CollapsibleSection extends StatelessWidget {
-  const _CollapsibleSection({required this.title, required this.children});
+  const _CollapsibleSection({required this.title, required this.children, this.initiallyExpanded = false});
   final String title;
   final List<Widget> children;
+  final bool initiallyExpanded;
 
   @override
   Widget build(BuildContext context) {
@@ -700,6 +705,7 @@ class _CollapsibleSection extends StatelessWidget {
         tilePadding: EdgeInsets.zero,
         childrenPadding: const EdgeInsets.only(top: 8, bottom: 8),
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
+        initiallyExpanded: initiallyExpanded,
         children: children,
       ),
     );

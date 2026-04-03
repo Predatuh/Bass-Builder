@@ -71,6 +71,9 @@ class EnclosureConfig {
     this.tuning2 = 0.0,
     this.tuning3 = 0.0,
     this.portDepthInsideBox = 0.0,
+    this.portACoeff = 0.0,
+    this.portBCoeff = 0.0,
+    this.portFlareLen = 0.0,
   });
 
   factory EnclosureConfig.initial() {
@@ -79,37 +82,37 @@ class EnclosureConfig {
       enclosureType: EnclosureType.ported,
       portType: PortType.slot,
       portPlacement: PortPlacement.frontBaffle,
-      subwooferId: 'sundown-x15-v3',
-      subModel: 'Sundown X-15 v.3',
+      subwooferId: 'custom',
+      subModel: 'Custom',
       vehicleTemplateId: 'custom',
       numberOfSubs: 2,
       mountSide: MountSide.front,
       arrangement: SubArrangement.rowHorizontal,
       width: 32,
       height: 20,
-      targetNetVolume: 6.2,
-      tuning: 36,
+      targetNetVolume: 5.0,
+      tuning: 33,
       woodThickness: 0.75,
       frontLayers: 2,
       backLayers: 1,
       topBottomLayers: 1,
       sideLayers: 1,
-      cutoutDiameter: 14.2,
-      outerDiameter: 15.5,
-      displacementPerSub: 0.28,
-      mountingDepth: 10.5,
+      cutoutDiameter: 11.125,
+      outerDiameter: 12.5,
+      displacementPerSub: 0.12,
+      mountingDepth: 6.5,
       slotPortWidth: 4,
       slotPortHeight: 18.5,
       roundPortDiameter: 8,
       numberOfPorts: 1,
       braceDisplacement: 0.12,
       useTsModel: true,
-      fs: 35,
-      qts: 0.4,
-      vas: 4.5,
-      xmax: 40,
-      sensitivity: 85,
-      power: 1500,
+      fs: 32,
+      qts: 0.45,
+      vas: 3.5,
+      xmax: 20,
+      sensitivity: 86,
+      power: 1000,
       subX: 11.2,
       subZ: 10.0,
       portX: 25.6,
@@ -145,6 +148,9 @@ class EnclosureConfig {
   final double tuning2;
   final double tuning3;
   final double portDepthInsideBox;
+  final double portACoeff;
+  final double portBCoeff;
+  final double portFlareLen;
 
   final String designName;
   final EnclosureType enclosureType;
@@ -264,6 +270,9 @@ class EnclosureConfig {
     double? tuning2,
     double? tuning3,
     double? portDepthInsideBox,
+    double? portACoeff,
+    double? portBCoeff,
+    double? portFlareLen,
   }) {
     return EnclosureConfig(
       designName: designName ?? this.designName,
@@ -332,6 +341,9 @@ class EnclosureConfig {
       tuning2: tuning2 ?? this.tuning2,
       tuning3: tuning3 ?? this.tuning3,
       portDepthInsideBox: portDepthInsideBox ?? this.portDepthInsideBox,
+      portACoeff: portACoeff ?? this.portACoeff,
+      portBCoeff: portBCoeff ?? this.portBCoeff,
+      portFlareLen: portFlareLen ?? this.portFlareLen,
     );
   }
 
@@ -405,6 +417,9 @@ class EnclosureConfig {
       'tuning2': tuning2,
       'tuning3': tuning3,
       'portDepthInsideBox': portDepthInsideBox,
+      'portACoeff': portACoeff,
+      'portBCoeff': portBCoeff,
+      'portFlareLen': portFlareLen,
     };
   }
 
@@ -505,6 +520,9 @@ class EnclosureConfig {
       tuning2: (map['tuning2'] as num?)?.toDouble() ?? 0.0,
       tuning3: (map['tuning3'] as num?)?.toDouble() ?? 0.0,
       portDepthInsideBox: (map['portDepthInsideBox'] as num?)?.toDouble() ?? 0.0,
+      portACoeff: (map['portACoeff'] as num?)?.toDouble() ?? 0.0,
+      portBCoeff: (map['portBCoeff'] as num?)?.toDouble() ?? 0.0,
+      portFlareLen: (map['portFlareLen'] as num?)?.toDouble() ?? 0.0,
     );
   }
 

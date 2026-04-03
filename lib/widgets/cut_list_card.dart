@@ -90,6 +90,33 @@ class CutListCard extends StatelessWidget {
               ],
 
               const SizedBox(height: 16),
+              Text('Displacement Breakdown', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: panelBg,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: panelBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _infoRow(context, 'Target Net Volume', '${config.targetNetVolume.toStringAsFixed(2)} cf', cs.primary),
+                    _infoRow(context, 'Sub Displacement', '${result.totalSubDisplacement.toStringAsFixed(3)} cf', detailColor),
+                    if (config.isPorted)
+                      _infoRow(context, 'Port Displacement', '${result.portDisplacement.toStringAsFixed(3)} cf', detailColor),
+                    _infoRow(context, 'Brace Displacement', '${result.effectiveBraceDisplacement.toStringAsFixed(3)} cf', detailColor),
+                    if (result.dividerDisplacement > 0)
+                      _infoRow(context, 'Divider Displacement', '${result.dividerDisplacement.toStringAsFixed(3)} cf', detailColor),
+                    _infoRow(context, 'Baffle Hole Gain', '-${result.baffleGain.toStringAsFixed(3)} cf', Colors.green),
+                    const Divider(),
+                    _infoRow(context, 'Gross Volume', '${result.grossVolume.toStringAsFixed(3)} cf', cs.primary),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
               Text('Material Summary', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
               if (result.sheetsNeeded > 0 || result.totalPanelAreaSqFt > 0)

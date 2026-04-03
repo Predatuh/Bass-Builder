@@ -109,6 +109,9 @@ class EnclosureCalculator {
       responseCurve3: responseCurve3,
       sheetsNeeded: sheetsNeeded,
       totalPanelAreaSqFt: totalPanelAreaSqFt,
+      baffleGain: baffleGain,
+      effectiveBraceDisplacement: effectiveBraceDisplacement,
+      dividerDisplacement: dividerDisplacement,
       metrics: [
         MetricTileData(label: 'External Depth', value: '${externalDepth.toStringAsFixed(2)} in'),
         MetricTileData(label: 'Net Volume', value: '${effectiveVolume.toStringAsFixed(2)} cf'),
@@ -236,13 +239,22 @@ class EnclosureCalculator {
 
     if (config.portType == PortType.slot) {
       const cSound = 13504.0;
-      const endCorrection = 1.005;
+      const endCorrection = 1.2;
       final acousticLength = (math.pow(cSound, 2) * portArea) /
           (4 * math.pi * math.pi * math.pow(config.tuning, 2) * effectiveNetVolume * 1728);
-      return math.max(6.0, acousticLength - (endCorrection * math.sqrt(portArea)));
+      return math.max(1.0, acousticLength - (endCorrection * math.sqrt(portArea)));
     }
 
-    return math.max(6.0, ((23562.5 * portArea) / (math.pow(config.tuning, 2) * (effectiveNetVolume * 1728))) - (0.823 * math.sqrt(portArea)));
+    // Round port — use per-port A/B coefficients when available
+    if (config.portACoeff > 0) {
+      final l = (config.portACoeff /
+              (math.pow(config.tuning, 2) * effectiveNetVolume)) +
+          config.portBCoeff;
+      return math.max(1.0, l);
+    }
+
+    // Fallback generic Helmholtz formula for round ports without preset
+    return math.max(1.0, ((23562.5 * portArea) / (math.pow(config.tuning, 2) * (effectiveNetVolume * 1728))) - (0.823 * math.sqrt(portArea)));
   }
 
   static double _portDisplacement(double portArea, double portLength) {

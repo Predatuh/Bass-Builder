@@ -34,12 +34,12 @@ class _FullscreenPreviewPageState extends State<FullscreenPreviewPage> {
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'Zoom in',
-            onPressed: () => setState(() => _zoom = (_zoom * 1.2).clamp(0.4, 4.0)),
+            onPressed: () => setState(() => _zoom = (_zoom * 1.2).clamp(0.2, 5.0)),
           ),
           IconButton(
             icon: const Icon(Icons.remove),
             tooltip: 'Zoom out',
-            onPressed: () => setState(() => _zoom = (_zoom / 1.2).clamp(0.4, 4.0)),
+            onPressed: () => setState(() => _zoom = (_zoom / 1.2).clamp(0.2, 5.0)),
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -53,7 +53,7 @@ class _FullscreenPreviewPageState extends State<FullscreenPreviewPage> {
           setState(() {
             _yaw += details.focalPointDelta.dx * 0.01;
             _pitch -= details.focalPointDelta.dy * 0.01;
-            _zoom = (_zoom * details.scale).clamp(0.4, 4.0);
+            _zoom = (_zoom * details.scale).clamp(0.2, 5.0);
           });
         },
         child: CustomPaint(

@@ -36,7 +36,7 @@ class _PreviewSceneCardState extends State<PreviewSceneCard> {
           _canvasSize.width / (config.width + result.externalDepth),
           _canvasSize.height / (config.height + result.externalDepth),
         ) *
-        7 *
+        3.5 *
         _zoom;
 
     final rotY = _Vec3(
@@ -189,7 +189,7 @@ class _PreviewSceneCardState extends State<PreviewSceneCard> {
                             setState(() {
                               _yaw += details.focalPointDelta.dx * 0.01;
                               _pitch -= details.focalPointDelta.dy * 0.01;
-                              _zoom = (_zoom * details.scale).clamp(0.6, 3.0);
+                              _zoom = (_zoom * details.scale).clamp(0.3, 4.0);
                             });
                           }
                         : null,
@@ -270,13 +270,13 @@ class _PreviewSceneCardState extends State<PreviewSceneCard> {
                         _IconFab(
                           icon: Icons.add,
                           onTap: () => setState(
-                              () => _zoom = (_zoom * 1.2).clamp(0.4, 4.0)),
+                              () => _zoom = (_zoom * 1.2).clamp(0.2, 5.0)),
                         ),
                         const SizedBox(height: 8),
                         _IconFab(
                           icon: Icons.remove,
                           onTap: () => setState(
-                              () => _zoom = (_zoom / 1.2).clamp(0.4, 4.0)),
+                              () => _zoom = (_zoom / 1.2).clamp(0.2, 5.0)),
                         ),
                         const SizedBox(height: 8),
                         _IconFab(

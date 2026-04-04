@@ -205,7 +205,7 @@ class ConfigForm extends StatelessWidget {
               ],
             ),
 
-            if (config.numberOfSubs > 1) ...[
+            if (config.numberOfSubs >= 1) ...[
               const SizedBox(height: 12),
               _NumberInput(
                 label: 'Inverted Subs',
@@ -221,11 +221,13 @@ class ConfigForm extends StatelessWidget {
               child: _LiveDepthHint(externalDepth: result.externalDepth),
             ),
 
-            // ── Port + Mounting ───────────────────────────────────────────────
-            const SizedBox(height: 12),
-            Text('Port + Mounting', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
+            // ── Port + Mounting (hidden for sealed) ─────────────────────────
+            if (config.enclosureType != EnclosureType.sealed) ...[const SizedBox(height: 12)],
+            if (config.enclosureType != EnclosureType.sealed)
+              Text('Port + Mounting', style: Theme.of(context).textTheme.titleMedium),
+            if (config.enclosureType != EnclosureType.sealed) ...[const SizedBox(height: 12)],
 
+            if (config.enclosureType != EnclosureType.sealed)
             _LabeledField(
               label: 'Port Type',
               child: DropdownButtonFormField<PortType>(
@@ -240,7 +242,7 @@ class ConfigForm extends StatelessWidget {
             ),
 
             // Slot port fields
-            if (config.portType == PortType.slot) ...[
+            if (config.enclosureType != EnclosureType.sealed && config.portType == PortType.slot) ...[
               Wrap(
                 spacing: 12,
                 runSpacing: 14,
@@ -270,7 +272,7 @@ class ConfigForm extends StatelessWidget {
             ],
 
             // Round port fields
-            if (config.portType == PortType.round) ...[
+            if (config.enclosureType != EnclosureType.sealed && config.portType == PortType.round) ...[
               Wrap(
                 spacing: 12,
                 runSpacing: 14,

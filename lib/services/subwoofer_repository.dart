@@ -35,9 +35,9 @@ class SubwooferRepository {
         return left.size.compareTo(right.size);
       });
 
-    final hasCustom = presets.any((preset) => preset.id == customSubwooferPreset.id);
+    final hasCustom = presets.any((preset) => preset.manufacturer == 'Custom');
     if (!hasCustom) {
-      presets.insert(0, customSubwooferPreset);
+      presets.insertAll(0, customSubwooferPresets);
     }
     return presets;
   }

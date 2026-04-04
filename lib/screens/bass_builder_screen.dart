@@ -290,7 +290,7 @@ class _LiveTweakSheetState extends State<_LiveTweakSheet> {
                     _yaw += d.focalPointDelta.dx * 0.01;
                     _pitch -= d.focalPointDelta.dy * 0.01;
                     if (d.pointerCount >= 2) {
-                      _zoom = (_zoom * d.scale).clamp(0.15, 3.0);
+                      _zoom = (_zoom * ((d.scale - 1) * 0.3 + 1)).clamp(0.15, 3.0);
                     }
                   }),
                   child: CustomPaint(

@@ -37,7 +37,7 @@ class _PreviewSceneCardState extends State<PreviewSceneCard> {
           _canvasSize.width / (config.width + result.externalDepth),
           _canvasSize.height / (config.height + result.externalDepth),
         ) *
-        3.5 *
+        2.8 *
         _zoom;
 
     final rotY = _Vec3(
@@ -50,7 +50,7 @@ class _PreviewSceneCardState extends State<PreviewSceneCard> {
       (rotY.y * math.cos(_pitch)) - (rotY.z * math.sin(_pitch)),
       (rotY.y * math.sin(_pitch)) + (rotY.z * math.cos(_pitch)),
     );
-    final p = 1.0 / (1 + (rot.z / 600));
+    final p = 1.0 / (1 + (rot.z / 1200));
     return Offset(center.dx + rot.x * scale * p, center.dy + rot.y * scale * p);
   }
 
@@ -202,7 +202,8 @@ class _PreviewSceneCardState extends State<PreviewSceneCard> {
                               _yaw += details.focalPointDelta.dx * 0.01;
                               _pitch -= details.focalPointDelta.dy * 0.01;
                               if (details.pointerCount >= 2) {
-                                _zoom = (_zoom * details.scale).clamp(0.15, 3.0);
+                                // Dampen pinch-zoom so small gestures don't jump
+                              _zoom = (_zoom * ((details.scale - 1) * 0.3 + 1)).clamp(0.15, 3.0);
                               }
                             });
                           }
@@ -511,7 +512,7 @@ class ScenePainter extends CustomPainter {
           size.width / (config.width + externalDepth),
           size.height / (config.height + externalDepth),
         ) *
-        3.5 *
+        2.8 *
         zoom;
     final explode = config.showExploded ? 0.5 : 0.0;
     final faces = _buildFaces(explode);
@@ -736,20 +737,20 @@ class ScenePainter extends CustomPainter {
       final xOuterR = xMax - (t * layer);
       final xInnerR = xMax - (t * (layer + 1));
       final color = layer.isEven ? woodSide : woodSideAlt;
-      // Left side outer
-      faces.add(_Face3D(points: [_v(xOuterL, yMin, izMin), _v(xOuterL, yMin, izMax), _v(xOuterL, yMax, izMax), _v(xOuterL, yMax, izMin)], color: color, stroke: woodSideStroke));
-      // Left side top/bottom edges (always — show thickness)
-      faces.add(_Face3D(points: [_v(xOuterL, yMin, izMin), _v(xOuterL, yMin, izMax), _v(xInnerL, yMin, izMax), _v(xInnerL, yMin, izMin)], color: woodEdge, stroke: woodEdgeStroke));
-      faces.add(_Face3D(points: [_v(xOuterL, yMax, izMin), _v(xOuterL, yMax, izMax), _v(xInnerL, yMax, izMax), _v(xInnerL, yMax, izMin)], color: woodEdge, stroke: woodEdgeStroke));
+      // Left side outer — full depth (zMin to zMax) so no gaps at front/back junctions
+      faces.add(_Face3D(points: [_v(xOuterL, yMin, zMin), _v(xOuterL, yMin, zMax), _v(xOuterL, yMax, zMax), _v(xOuterL, yMax, zMin)], color: color, stroke: woodSideStroke));
+      // Left side top/bottom edges — show wood thickness
+      faces.add(_Face3D(points: [_v(xOuterL, yMin, zMin), _v(xOuterL, yMin, zMax), _v(xInnerL, yMin, zMax), _v(xInnerL, yMin, zMin)], color: woodEdge, stroke: woodEdgeStroke));
+      faces.add(_Face3D(points: [_v(xOuterL, yMax, zMin), _v(xOuterL, yMax, zMax), _v(xInnerL, yMax, zMax), _v(xInnerL, yMax, zMin)], color: woodEdge, stroke: woodEdgeStroke));
       if (showInterior) {
         faces.add(_Face3D(points: [_v(xInnerL, yMin, izMin), _v(xInnerL, yMin, izMax), _v(xInnerL, yMax, izMax), _v(xInnerL, yMax, izMin)], color: woodEdge, stroke: woodEdgeStroke));
       }
 
-      // Right side outer
-      faces.add(_Face3D(points: [_v(xOuterR, yMin, izMin), _v(xOuterR, yMin, izMax), _v(xOuterR, yMax, izMax), _v(xOuterR, yMax, izMin)], color: color, stroke: woodSideStroke));
-      // Right side top/bottom edges (always — show thickness)
-      faces.add(_Face3D(points: [_v(xOuterR, yMin, izMin), _v(xOuterR, yMin, izMax), _v(xInnerR, yMin, izMax), _v(xInnerR, yMin, izMin)], color: woodEdge, stroke: woodEdgeStroke));
-      faces.add(_Face3D(points: [_v(xOuterR, yMax, izMin), _v(xOuterR, yMax, izMax), _v(xInnerR, yMax, izMax), _v(xInnerR, yMax, izMin)], color: woodEdge, stroke: woodEdgeStroke));
+      // Right side outer — full depth
+      faces.add(_Face3D(points: [_v(xOuterR, yMin, zMin), _v(xOuterR, yMin, zMax), _v(xOuterR, yMax, zMax), _v(xOuterR, yMax, zMin)], color: color, stroke: woodSideStroke));
+      // Right side top/bottom edges
+      faces.add(_Face3D(points: [_v(xOuterR, yMin, zMin), _v(xOuterR, yMin, zMax), _v(xInnerR, yMin, zMax), _v(xInnerR, yMin, zMin)], color: woodEdge, stroke: woodEdgeStroke));
+      faces.add(_Face3D(points: [_v(xOuterR, yMax, zMin), _v(xOuterR, yMax, zMax), _v(xInnerR, yMax, zMax), _v(xInnerR, yMax, zMin)], color: woodEdge, stroke: woodEdgeStroke));
       if (showInterior) {
         faces.add(_Face3D(points: [_v(xInnerR, yMin, izMin), _v(xInnerR, yMin, izMax), _v(xInnerR, yMax, izMax), _v(xInnerR, yMax, izMin)], color: woodEdge, stroke: woodEdgeStroke));
       }
@@ -762,19 +763,20 @@ class ScenePainter extends CustomPainter {
       final yOuterB = yMax - (t * layer);
       final yInnerB = yMax - (t * (layer + 1));
       final color = layer.isEven ? woodTop : woodTopAlt;
-      // Top outer
-      faces.add(_Face3D(points: [_v(xMin, yOuterT, izMin), _v(xMax, yOuterT, izMin), _v(xMax, yOuterT, izMax), _v(xMin, yOuterT, izMax)], color: color, stroke: woodSideStroke));
-      // Top front/back edges (always — show thickness)
-      faces.add(_Face3D(points: [_v(xMin, yOuterT, izMax), _v(xMax, yOuterT, izMax), _v(xMax, yInnerT, izMax), _v(xMin, yInnerT, izMax)], color: woodEdge, stroke: woodEdgeStroke));
-      faces.add(_Face3D(points: [_v(xMin, yOuterT, izMin), _v(xMax, yOuterT, izMin), _v(xMax, yInnerT, izMin), _v(xMin, yInnerT, izMin)], color: woodEdge, stroke: woodEdgeStroke));
+      // Top outer — full depth (zMin to zMax)
+      faces.add(_Face3D(points: [_v(xMin, yOuterT, zMin), _v(xMax, yOuterT, zMin), _v(xMax, yOuterT, zMax), _v(xMin, yOuterT, zMax)], color: color, stroke: woodSideStroke));
+      // Top front/back edges — show thickness
+      faces.add(_Face3D(points: [_v(xMin, yOuterT, zMax), _v(xMax, yOuterT, zMax), _v(xMax, yInnerT, zMax), _v(xMin, yInnerT, zMax)], color: woodEdge, stroke: woodEdgeStroke));
+      faces.add(_Face3D(points: [_v(xMin, yOuterT, zMin), _v(xMax, yOuterT, zMin), _v(xMax, yInnerT, zMin), _v(xMin, yInnerT, zMin)], color: woodEdge, stroke: woodEdgeStroke));
       if (showInterior) {
         faces.add(_Face3D(points: [_v(xMin, yInnerT, izMin), _v(xMax, yInnerT, izMin), _v(xMax, yInnerT, izMax), _v(xMin, yInnerT, izMax)], color: woodEdge, stroke: woodEdgeStroke));
       }
 
-      // Bottom outer
-      faces.add(_Face3D(points: [_v(xMin, yOuterB, izMin), _v(xMax, yOuterB, izMin), _v(xMax, yOuterB, izMax), _v(xMin, yOuterB, izMax)], color: color.withValues(alpha: 0.85), stroke: woodSideStroke));
-      // Bottom front edge (always)
-      faces.add(_Face3D(points: [_v(xMin, yOuterB, izMax), _v(xMax, yOuterB, izMax), _v(xMax, yInnerB, izMax), _v(xMin, yInnerB, izMax)], color: woodEdge, stroke: woodEdgeStroke));
+      // Bottom outer — full depth
+      faces.add(_Face3D(points: [_v(xMin, yOuterB, zMin), _v(xMax, yOuterB, zMin), _v(xMax, yOuterB, zMax), _v(xMin, yOuterB, zMax)], color: color.withValues(alpha: 0.85), stroke: woodSideStroke));
+      // Bottom front/back edges
+      faces.add(_Face3D(points: [_v(xMin, yOuterB, zMax), _v(xMax, yOuterB, zMax), _v(xMax, yInnerB, zMax), _v(xMin, yInnerB, zMax)], color: woodEdge, stroke: woodEdgeStroke));
+      faces.add(_Face3D(points: [_v(xMin, yOuterB, zMin), _v(xMax, yOuterB, zMin), _v(xMax, yInnerB, zMin), _v(xMin, yInnerB, zMin)], color: woodEdge, stroke: woodEdgeStroke));
       if (showInterior) {
         faces.add(_Face3D(points: [_v(xMin, yInnerB, izMin), _v(xMax, yInnerB, izMin), _v(xMax, yInnerB, izMax), _v(xMin, yInnerB, izMax)], color: woodEdge, stroke: woodEdgeStroke));
       }
@@ -790,8 +792,8 @@ class ScenePainter extends CustomPainter {
       faces.add(_Face3D(points: [_v(ixMin, iyMax, izMin), _v(ixMax, iyMax, izMin), _v(ixMax, iyMax, izMax), _v(ixMin, iyMax, izMax)], color: cavityColor, stroke: cavityStroke));
     }
 
-    // ── Slot port interior boards (only when transparent or exploded) ──
-    if (showInterior && config.isPorted && config.portType == PortType.slot) {
+    // ── Slot port interior boards (always visible when ported with slot) ──
+    if (config.isPorted && config.portType == PortType.slot) {
       _addSlotPortInterior(faces, ixMin, ixMax, iyMin, iyMax, izMin, izMax);
     }
 
@@ -872,12 +874,13 @@ class ScenePainter extends CustomPainter {
 
     if (config.isPorted) {
       final portNormalVec = _portNormal();
-      final portFaceVisible = config.showTransparent || _isFaceVisible(portNormalVec);
-      if (portFaceVisible) {
-        final portCenter = _portCenter();
-        if (config.portType == PortType.round) {
-          _draw3DAeroport(canvas, center, scale, portCenter);
-        } else {
+      final portCenter = _portCenter();
+      if (config.portType == PortType.round) {
+        // Always draw round port tube — cylinder is visible from any angle
+        _draw3DAeroport(canvas, center, scale, portCenter);
+      } else {
+        final portFaceVisible = config.showTransparent || _isFaceVisible(portNormalVec);
+        if (portFaceVisible) {
           final rectPoints = _slotPortPoints()
               .map((p) => _project(p, center, scale))
               .toList();
@@ -915,7 +918,8 @@ class ScenePainter extends CustomPainter {
 
     // Infer normal direction from mount side
     final normal = _mountNormal();
-    final depth = 2.0; // cone depth in inches
+    // Scale cone depth to mounting depth (capped to keep it proportional)
+    final depth = (config.mountingDepth / 5.0).clamp(1.5, 4.0);
 
     // Basket ring (filled dark grey)
     _drawRingOnFace(canvas, center, scale, subC, r, normal,
@@ -935,9 +939,9 @@ class ScenePainter extends CustomPainter {
       capPoints.add(_radialPoint(subC, dustR, theta, normal, depth));
     }
 
-    // Draw cone side panels as quads
+    // Draw cone side panels — reversed winding shows inner (concave) surface toward viewer
     for (var i = 0; i < segments; i++) {
-      final quad = [conePoints[i], conePoints[i + 1], capPoints[i + 1], capPoints[i]];
+      final quad = [conePoints[i + 1], conePoints[i], capPoints[i], capPoints[i + 1]];
       final projected = quad.map((p) => _project(p, center, scale)).toList();
       final path = Path()..addPolygon(projected, true);
       canvas.drawPath(path, Paint()..color = const Color(0xFF1A1A1A));
@@ -1269,7 +1273,8 @@ class ScenePainter extends CustomPainter {
       (rotY.y * math.cos(pitch)) - (rotY.z * math.sin(pitch)),
       (rotY.y * math.sin(pitch)) + (rotY.z * math.cos(pitch)),
     );
-    final persp = 1.0 / (1 + (rot.z / 600));
+    // Use longer focal length (1200) for near-orthographic look — reduces distortion
+    final persp = 1.0 / (1 + (rot.z / 1200));
     return Offset(
       center.dx + (rot.x * scale * persp),
       center.dy + (rot.y * scale * persp),

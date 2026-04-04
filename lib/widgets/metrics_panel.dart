@@ -21,6 +21,24 @@ class MetricsPanel extends StatelessWidget {
     return const Color(0xFFDC2626);
   }
 
+  Widget _volRow(BuildContext context, String label, String value, {bool bold = false}) {
+    final ts = Theme.of(context).textTheme.bodySmall;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: ts),
+          Text(value,
+              style: ts?.copyWith(
+                fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
+                color: bold ? Theme.of(context).colorScheme.primary : null,
+              )),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<BassBuilderController>();
@@ -113,6 +131,30 @@ class MetricsPanel extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        if (result.grossVolume > 0)
+          SizedBox(
+            width: 190,
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Volume Summary', style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 10),
+                    _volRow(context, 'Gross', '${result.grossVolume.toStringAsFixed(3)} cf'),
+                    _volRow(context, 'Sub disp.', '−${result.totalSubDisplacement.toStringAsFixed(3)} cf'),
+                    if (result.portDisplacement > 0)
+                      _volRow(context, 'Port disp.', '−${result.portDisplacement.toStringAsFixed(3)} cf'),
+                    if (result.effectiveBraceDisplacement > 0)
+                      _volRow(context, 'Braces', '−${result.effectiveBraceDisplacement.toStringAsFixed(3)} cf'),
+                    const Divider(height: 10, thickness: 0.5),
+                    _volRow(context, 'Net', '${(result.grossVolume - result.totalDisplacement).toStringAsFixed(3)} cf', bold: true),
                   ],
                 ),
               ),
